@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kill Cam Login Settings</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      width: 300px;
+      padding: 10px;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .description {
+      flex: 1;
+      margin-right: 10px;
+    }
+    .toggle-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .toggle-btn.disabled {
+      background-color: #f44336;
+    }
+  </style>
+</head>
+<body>
+  <h2>Login Skip Settings</h2>
+
+  <div class="setting-row">
+    <div class="description">
+      <strong>Moodle Login Skip</strong>
+      <p>Automatically click the login button on Moodle</p>
+    </div>
+    <button id="moodle-toggle" class="toggle-btn">Enabled</button>
+  </div>
+
+  <div class="setting-row">
+    <div class="description">
+      <strong>Panopto Login Skip</strong>
+      <p>Automatically click the login button on Panopto</p>
+    </div>
+    <button id="panopto-toggle" class="toggle-btn">Enabled</button>
+  </div>
+
+  <div class="bmc-container" style="text-align: center; margin-top: 20px;">
+    <a id="bmc-button" href="#">
+      <img src="src/bmc-button.png" alt="Buy Me A Coffee" style="height: 40px;">
+    </a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
