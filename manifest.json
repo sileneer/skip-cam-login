@@ -6,17 +6,13 @@
   "permissions": [
     "activeTab",
     "notifications",
-    "storage",
-    "tabs"
+    "storage"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://www.vle.cam.ac.uk/login/*",
-        "https://cambridgelectures.cloud.panopto.eu/*",
-        "https://shib.raven.cam.ac.uk/*",
-        "https://login.microsoftonline.com/*"
-
+        "https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx*"
       ],
       "js": [
         "content.js"
@@ -25,12 +21,10 @@
     }
   ],
   "action": {
-    "default_popup": "hello.html",
+    "default_popup": "settings.html",
     "default_icon": "icon.png"
   },
-
   "background": {
     "service_worker": "background.js"
   }
-
 }

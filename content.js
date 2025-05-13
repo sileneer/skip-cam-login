@@ -1,17 +1,20 @@
 // content.js
 
-// Initialize status variables with defaults
-let moodle_status = true;
-let panopto_status = true;
+// Initialize the blacklist website list
+let blacklist = [];
 
 // Load status values from storage
-chrome.storage.sync.get(['moodle_status', 'panopto_status'], function(result) {
+chrome.storage.sync.get(['moodle_status', 'panopto_status'], function (result) {
     // Update variables if found in storage
-    moodle_status = result.moodle_status !== undefined ? result.moodle_status : true;
-    panopto_status = result.panopto_status !== undefined ? result.panopto_status : true;
+    if (result.moodle_status !== undefined && !result.moodle_status) {
+        blacklist.push("MOODLE");
+    }
+    if (result.panopto_status !== undefined && result.panopto_status) {
+        blacklist.push("PANOPTO");
+    }
 
     // Run the auto-click function after loading settings
-    setTimeout(autoClickElement, 500);
+    setTimeout(autoClickElement, 100);
 });
 
 // This function will try to find and click the element.
@@ -26,12 +29,15 @@ function autoClickElement() {
 
     let elementSelector = false;
     let targetElement = false;
+    let current_name;
 
-    if (moodle_status && url === "https://www.vle.cam.ac.uk/login/index.php") {
+    if (!blacklist.includes("MOODLE") && url === "https://www.vle.cam.ac.uk/login/index.php") {
         elementSelector = 'a.btn.btn-secondary';
+        current_name = "Moodle"
     }
-    if (panopto_status && url.startsWith("https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx")) {
+    if (!blacklist.includes("PANOPTO") && url.startsWith("https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx")) {
         elementSelector = '#PageContentPlaceholder_loginControl_externalLoginButton';
+        current_name = "Panopto";
     }
 
     if (elementSelector) {
@@ -49,7 +55,7 @@ function autoClickElement() {
             chrome.runtime.sendMessage({
                 type: "show_notification",
                 title: "Login Skipped",
-                message: "Login button clicked automatically!"
+                message: "Login button on " + current_name + " clicked automatically."
             });
         } else {
             console.error('Auto Clicker: Element found, but does not have a click method.', targetElement);
