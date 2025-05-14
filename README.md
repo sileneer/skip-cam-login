@@ -1,10 +1,35 @@
-# Getting Started With Google Chrome Extensions (Hello World)
+# kill-cam-login
 
-This example demonstrates how to create a simple "Hello World" Chrome Extension.
-For more details, visit the [official tutorial](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world).
+Tired of frequent login to Moodle and Panopto? This extension helps you automatically click on the Login button on Moodle and Panopto, so you can access the course page as fast as possible!
 
-## Running This Extension
+[//]: # (## Key features)
 
-1. Clone this repository.
-2. Load this directory in Chrome as an [unpacked extension](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked).
-3. Click the extension icon in the Chrome toolbar, then select the "Hello Extensions" extension. A popup will appear displaying the text "Hello Extensions".
+[//]: # (## Development pathway)
+
+[//]: # ()
+[//]: # (### Bug tracks)
+
+[//]: # ()
+[//]: # (### Under development)
+
+[//]: # ()
+[//]: # (### Future support and improvements)
+
+[//]: # ()
+[//]: # (### Completed)
+
+## Current Version:
+
+Release: 1.0
+
+Release Candidate:
+
+## Release Notes:
+
+### Version 1.0:
+
+Release date: 13/05/2025
+
+- Automatically login button click to Moodle and Panopto.
+- Allow users to disable for certain sites.
+- Notification support.
