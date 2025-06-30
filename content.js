@@ -1,10 +1,16 @@
-// content.js
-
 // Initialize the blacklist website list
 let blacklist = [];
 
+// Variable to track the last notification time
+let lastNotificationTime = 0;
+
+// Function to check if the page is visible to the user
+function isPageVisible() {
+    return document.visibilityState === 'visible';
+}
+
 // Load status values from storage
-chrome.storage.sync.get(['moodle_status', 'panopto_status'], function (result) {
+chrome.storage.sync.get(['moodle_status', 'panopto_status', 'notification_status'], function (result) {
     // Update variables if found in storage
     if (result.moodle_status !== undefined && !result.moodle_status) {
         blacklist.push("MOODLE");
@@ -13,8 +19,26 @@ chrome.storage.sync.get(['moodle_status', 'panopto_status'], function (result) {
         blacklist.push("PANOPTO");
     }
 
-    // Run the auto-click function after loading settings
-    setTimeout(autoClickElement, 100);
+    // Log the blacklist items before clicking
+    console.log('Auto Clicker: Blacklisted items:', blacklist.length > 0 ? blacklist.join(', ') : 'None');
+
+    // Store notification status (default to true if not set)
+    window.notificationEnabled = result.notification_status !== undefined ? result.notification_status : true;
+
+    // Only run the auto-click function if the page is visible
+    if (isPageVisible()) {
+        // Run the auto-click function after loading settings
+        setTimeout(autoClickElement, 100);
+    } else {
+        console.log('Auto Clicker: Page is not visible, waiting for visibility change');
+        // Add event listener to run when the page becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (isPageVisible()) {
+                console.log('Auto Clicker: Page became visible, running auto-click');
+                autoClickElement();
+            }
+        });
+    }
 });
 
 // This function will try to find and click the element.
@@ -31,13 +55,27 @@ function autoClickElement() {
     let targetElement = false;
     let current_name;
 
-    if (!blacklist.includes("MOODLE") && url === "https://www.vle.cam.ac.uk/login/index.php") {
-        elementSelector = 'a.btn.btn-secondary';
-        current_name = "Moodle"
+    // Log the current URL and blacklist status
+    console.log('Auto Clicker: Checking URL:', url);
+    console.log('Auto Clicker: Current blacklist status:', blacklist.length > 0 ? blacklist.join(', ') : 'No items blacklisted');
+
+
+
+    if (url === "https://www.vle.cam.ac.uk/login/index.php") {
+        if (!blacklist.includes("MOODLE")) {
+            elementSelector = 'a.btn.btn-secondary';
+            current_name = "Moodle";
+        } else {
+            console.log('Auto Clicker: Skipping Moodle login because it is in the blacklist');
+        }
     }
-    if (!blacklist.includes("PANOPTO") && url.startsWith("https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx")) {
-        elementSelector = '#PageContentPlaceholder_loginControl_externalLoginButton';
-        current_name = "Panopto";
+    if (url.startsWith("https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx")) {
+        if (!blacklist.includes("PANOPTO")) {
+            elementSelector = '#PageContentPlaceholder_loginControl_externalLoginButton';
+            current_name = "Panopto";
+        } else {
+            console.log('Auto Clicker: Skipping Panopto login because it is in the blacklist');
+        }
     }
 
     if (elementSelector) {
@@ -51,12 +89,22 @@ function autoClickElement() {
         if (typeof targetElement.click === 'function') {
             targetElement.click();
             console.log('Auto Clicker: Element clicked!');
-            // ✅ Send notification
-            chrome.runtime.sendMessage({
-                type: "show_notification",
-                title: "Login Skipped",
-                message: "Login button on " + current_name + " clicked automatically."
-            });
+            // ✅ Send notification if enabled and not throttled (5-second cooldown)
+            if (window.notificationEnabled) {
+                const currentTime = Date.now();
+                // Only send notification if 5 seconds have passed since the last one
+                if (currentTime - lastNotificationTime > 5000) {
+                    chrome.runtime.sendMessage({
+                        type: "show_notification",
+                        title: "Login Skipped",
+                        message: "Login button on " + current_name + " clicked automatically."
+                    });
+                    // Update the last notification time
+                    lastNotificationTime = currentTime;
+                } else {
+                    console.log('Auto Clicker: Notification throttled (cooldown period)');
+                }
+            }
         } else {
             console.error('Auto Clicker: Element found, but does not have a click method.', targetElement);
         }
