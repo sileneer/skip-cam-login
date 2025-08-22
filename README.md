@@ -1,35 +1,128 @@
-# kill-cam-login
+# Kill Cam Login
 
-Tired of frequent login to Moodle and Panopto? This extension helps you automatically click on the Login button on Moodle and Panopto, so you can access the course page as fast as possible!
+🚀 **Skip the hassle of repeated logins!** This Chrome extension automatically clicks login buttons on Cambridge University's Moodle (VLE) and Panopto platforms, getting you to your course content faster.
 
-[//]: # (## Key features)
+## ✨ Key Features
 
-[//]: # (## Development pathway)
+- **🎯 Automatic Login**: Instantly clicks login buttons on Moodle and Panopto pages
+- **⚙️ Configurable Settings**: Enable or disable the extension for specific sites
+- **🔔 Smart Notifications**: Get notified when login buttons are automatically clicked
+- **🎨 Clean Interface**: Simple popup settings with toggle switches
+- **🔒 Privacy Focused**: Only activates on specific Cambridge University domains
 
-[//]: # ()
-[//]: # (### Bug tracks)
+## 🖥️ Supported Sites
 
-[//]: # ()
-[//]: # (### Under development)
+- **Cambridge VLE (Moodle)**: `https://www.vle.cam.ac.uk/login/*`
+- **Cambridge Panopto**: `https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx*`
 
-[//]: # ()
-[//]: # (### Future support and improvements)
+## 📦 Installation
 
-[//]: # ()
-[//]: # (### Completed)
+### From Chrome Web Store (Recommended)
+*Coming soon - extension will be published to the Chrome Web Store*
 
-## Current Version:
+### Manual Installation (Developer Mode)
+1. Download or clone this repository
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" in the top right corner
+4. Click "Load unpacked" and select the extension folder
+5. The Kill Cam Login extension should now appear in your extensions list
 
-Release: 1.0
+## 🚀 Usage
 
-Release Candidate:
+1. **Install the extension** using one of the methods above
+2. **Navigate** to any supported Cambridge University login page
+3. **Watch it work!** The extension will automatically click the login button
+4. **Configure settings** by clicking the extension icon in your browser toolbar
 
-## Release Notes:
+### Settings Options
 
-### Version 1.0:
+- **Moodle Login Skip**: Toggle automatic login for Cambridge VLE/Moodle
+- **Panopto Login Skip**: Toggle automatic login for Cambridge Panopto
+- **Notifications**: Enable/disable notifications when login buttons are clicked
 
-Release date: 13/05/2025
+## 🔧 How It Works
 
-- Automatically login button click to Moodle and Panopto.
-- Allow users to disable for certain sites.
-- Notification support.
+The extension uses content scripts that run on specific Cambridge University domains. When you visit a login page:
+
+1. The extension detects if you're on a supported login page
+2. Checks your settings to see if auto-login is enabled for that site
+3. Automatically clicks the appropriate login button
+4. Shows a notification (if enabled) confirming the action
+
+## 🛠️ Development
+
+### Prerequisites
+- Chrome browser
+- Basic knowledge of Chrome extension development
+
+### File Structure
+```
+kill-cam-login/
+├── manifest.json          # Extension configuration
+├── content.js             # Main logic for auto-clicking
+├── background.js          # Background service worker
+├── settings.html          # Popup settings interface
+├── settings.js            # Settings functionality
+├── icon.png              # Extension icon
+└── src/                  # Assets and images
+```
+
+### Contributing
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Test thoroughly on both Moodle and Panopto
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+## 🐛 Troubleshooting
+
+### Extension Not Working?
+- Ensure you're on a supported Cambridge University domain
+- Check that the extension is enabled in `chrome://extensions/`
+- Verify the specific site is enabled in the extension settings
+- Try refreshing the page after enabling the extension
+
+### Login Button Not Found?
+- The extension targets specific login button selectors
+- If the site layout changes, the extension may need updates
+- Please report issues on GitHub with the specific page URL
+
+## 📝 Privacy & Permissions
+
+This extension only requests minimal permissions:
+- **Storage**: To save your settings preferences
+- **Notifications**: To show confirmation messages (optional)
+
+The extension:
+- ✅ Only runs on specific Cambridge University domains
+- ✅ Does not collect or transmit any personal data
+- ✅ Works entirely locally in your browser
+- ✅ Does not interfere with the actual login process
+
+## 💬 Support
+
+- 🐛 **Bug Reports**: [Open an issue on GitHub](https://github.com/sileneer/kill-cam-login/issues)
+- 💡 **Feature Requests**: [Suggest improvements on GitHub](https://github.com/sileneer/kill-cam-login/issues)
+- ☕ **Support Development**: [Buy me a coffee](https://buymeacoffee.com/sileneer)
+
+## 📄 License
+
+This project is open source. See the repository for license details.
+
+## 📋 Version History
+
+### Version 1.0 (Current)
+**Release Date**: May 13, 2025
+
+**Features:**
+- ✅ Automatic login button clicking for Moodle and Panopto
+- ✅ Configurable settings for each supported site
+- ✅ Desktop notification support
+- ✅ Clean, user-friendly settings interface
+- ✅ Privacy-focused design with minimal permissions
+
+---
+
+**Made with ❤️ for Cambridge University students and staff**
