@@ -1,0 +1,23 @@
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build / packaging
+*.zip
+*.crx
+*.pem
+dist/
+build/
+node_modules/
