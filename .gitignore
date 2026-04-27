@@ -21,3 +21,6 @@ npm-debug.log*
 dist/
 build/
 node_modules/
+
+# Brainstorming / scratch
+.superpowers/

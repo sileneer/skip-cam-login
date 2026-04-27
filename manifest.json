@@ -16,7 +16,7 @@
     {
       "matches": [
         "https://www.vle.cam.ac.uk/login/*",
-        "https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx*"
+        "https://cambridgelectures.cloud.panopto.eu/Panopto/*"
       ],
       "js": [
         "content.js"

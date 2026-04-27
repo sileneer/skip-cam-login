@@ -3,40 +3,142 @@
 const SITES = [
     {
         name: 'Moodle',
-        match: (url) => url.startsWith('https://www.vle.cam.ac.uk/login'),
-        selector: 'a.btn.btn-secondary',
+        isLogin: (url) =>
+            url.startsWith('https://www.vle.cam.ac.uk/login') &&
+            !url.startsWith('https://www.vle.cam.ac.uk/login/logout.php'),
+        isLogout: (url) => url.startsWith('https://www.vle.cam.ac.uk/login/logout.php'),
+        isAuthenticatedPage: () => false,
+        loginButtonSelector: 'a.btn.btn-secondary',
+        logoutButtonSelector: null,
         statusKey: 'moodle_status',
     },
     {
         name: 'Panopto',
-        match: (url) => url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx'),
-        selector: '#PageContentPlaceholder_loginControl_externalLoginButton',
+        isLogin: (url) => url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx'),
+        isLogout: () => false,
+        isAuthenticatedPage: (url) =>
+            url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/') &&
+            !url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/'),
+        loginButtonSelector: '#PageContentPlaceholder_loginControl_externalLoginButton',
+        logoutButtonSelector: 'a.logout-button, a[id$="_Logout"], a[href*="__doPostBack"][href*="Logout"]',
         statusKey: 'panopto_status',
     },
 ];
 
 const OBSERVER_TIMEOUT_MS = 10000;
+const SESSION_FLAG_KEY = 'suppress_auto_login';
+const TAB_FLAG_KEY = 'killcam_suppress_auto_login';
 
 (async () => {
-    const site = SITES.find((s) => s.match(window.location.href));
-    if (!site) return;
+    try {
+        const url = window.location.href;
+        const site = SITES.find((s) =>
+            s.isLogin(url) || s.isLogout(url) || s.isAuthenticatedPage(url));
+        if (!site) return;
 
-    const settings = await chrome.storage.sync.get(site.statusKey);
-    if (settings[site.statusKey] === false) {
-        console.log(`Auto Clicker: ${site.name} disabled in settings`);
+        if (site.isLogout(url)) {
+            markLoggedOut();
+            console.log(`Auto Clicker: detected ${site.name} logout URL, suppression armed`);
+            return;
+        }
+
+        if (site.isAuthenticatedPage(url)) {
+            installLogoutInterceptor(site);
+            return;
+        }
+
+        // Login page from here on.
+        const settings = await chrome.storage.sync.get(site.statusKey);
+        if (settings[site.statusKey] === false) {
+            console.log(`Auto Clicker: ${site.name} disabled in settings`);
+            return;
+        }
+
+        if (document.referrer && SITES.some((s) => s.isLogout(document.referrer))) {
+            markLoggedOut();
+        }
+
+        if (await isSuppressed()) {
+            console.log(`Auto Clicker: ${site.name} suppressed (recent logout) — waiting for manual click`);
+            attachClearOnClick(site);
+            return;
+        }
+
+        if (document.visibilityState === 'visible') {
+            runAutoClick(site);
+        } else {
+            document.addEventListener('visibilitychange', function onVisible() {
+                if (document.visibilityState !== 'visible') return;
+                document.removeEventListener('visibilitychange', onVisible);
+                runAutoClick(site);
+            });
+        }
+    } catch (err) {
+        console.warn('Auto Clicker: error', err);
+    }
+})();
+
+function markLoggedOut() {
+    try { sessionStorage.setItem(TAB_FLAG_KEY, '1'); } catch (err) {}
+    chrome.storage.session.set({ [SESSION_FLAG_KEY]: true })
+        .catch((err) => console.warn('Auto Clicker: failed to set session flag', err));
+}
+
+async function clearSuppression() {
+    try { sessionStorage.removeItem(TAB_FLAG_KEY); } catch (err) {}
+    try {
+        await chrome.storage.session.remove(SESSION_FLAG_KEY);
+    } catch (err) {
+        console.warn('Auto Clicker: failed to clear session flag', err);
+    }
+}
+
+async function isSuppressed() {
+    let tabFlag = false;
+    try { tabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
+    if (tabFlag) return true;
+
+    const { logout_scope_session } = await chrome.storage.sync.get('logout_scope_session');
+    const sessionMode = logout_scope_session !== false;
+    if (!sessionMode) return false;
+
+    const result = await chrome.storage.session.get(SESSION_FLAG_KEY);
+    return result[SESSION_FLAG_KEY] === true;
+}
+
+function installLogoutInterceptor(site) {
+    document.addEventListener('click', (event) => {
+        const target = event.target.closest && event.target.closest(site.logoutButtonSelector);
+        if (target) {
+            console.log(`Auto Clicker: ${site.name} sign-out clicked, suppression armed`);
+            markLoggedOut();
+        }
+    }, { capture: true });
+}
+
+function attachClearOnClick(site) {
+    const attach = (target) => {
+        target.addEventListener('click', () => {
+            clearSuppression().catch((err) => console.warn('Auto Clicker: clear failed', err));
+        }, { once: true });
+    };
+
+    const existing = document.querySelector(site.loginButtonSelector);
+    if (existing) {
+        attach(existing);
         return;
     }
 
-    if (document.visibilityState === 'visible') {
-        runAutoClick(site);
-    } else {
-        document.addEventListener('visibilitychange', function onVisible() {
-            if (document.visibilityState !== 'visible') return;
-            document.removeEventListener('visibilitychange', onVisible);
-            runAutoClick(site);
-        });
-    }
-})();
+    const observer = new MutationObserver(() => {
+        const target = document.querySelector(site.loginButtonSelector);
+        if (target) {
+            attach(target);
+            observer.disconnect();
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), OBSERVER_TIMEOUT_MS);
+}
 
 function runAutoClick(site) {
     if (tryClick(site)) return;
@@ -49,7 +151,7 @@ function runAutoClick(site) {
 }
 
 function tryClick(site) {
-    const target = document.querySelector(site.selector);
+    const target = document.querySelector(site.loginButtonSelector);
     if (!target || typeof target.click !== 'function') return false;
 
     target.click();
