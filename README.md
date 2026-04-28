@@ -137,7 +137,3 @@ This project is open source. See the repository for license details.
 - ✅ Desktop notification support
 - ✅ Clean, user-friendly settings interface
 - ✅ Privacy-focused design with minimal permissions
-
----
-
-**Made with ❤️ for Cambridge University students and staff**
