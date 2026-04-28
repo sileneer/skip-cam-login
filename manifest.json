@@ -1,8 +1,9 @@
 {
-  "name": "Kill Cam Login",
-  "description": "An extension to help you skip clicking the login button on Moodle and Panopto",
+  "name": "Skip Cam Login",
+  "description": "Auto-click the login button on Cambridge VLE (Moodle) and Panopto so you skip the extra click.",
   "version": "1.0",
   "manifest_version": 3,
+  "homepage_url": "https://github.com/sileneer/skip-cam-login",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
@@ -26,10 +27,12 @@
   ],
   "action": {
     "default_popup": "settings.html",
-    "default_title": "Kill Cam Login",
+    "default_title": "Skip Cam Login",
     "default_icon": {
       "16": "icon.png",
-      "32": "icon.png"
+      "24": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png"
     }
   },
   "background": {

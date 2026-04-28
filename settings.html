@@ -3,184 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kill Cam Login Settings</title>
+  <title>Skip Cam Login Settings</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      width: 300px;
-      padding: 10px;
+    :root {
+      --bg: #FFFFFF;
+      --bg-footer: #FAFAFA;
+      --text: #18181B;
+      --text-secondary: #71717A;
+      --text-muted: #A1A1AA;
+      --text-footer: #52525B;
+      --border: #E4E4E7;
+      --border-subtle: #F4F4F5;
+      --accent: #10B981;
+      --accent-soft: rgba(16, 185, 129, 0.18);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     }
-    .setting-row {
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; }
+
+    body {
+      width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font: 12px/1.5 var(--font);
+    }
+
+    h2 { margin: 0; }
+
+    .header {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .group { padding: 8px 0; }
+    .group + .group { border-top: 1px solid var(--border-subtle); }
+
+    .group-label {
+      padding: 4px 18px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .row {
       display: flex;
       align-items: center;
-      margin-bottom: 15px;
+      gap: 12px;
+      padding: 10px 18px;
     }
-    .description {
-      flex: 1;
-      margin-right: 10px;
+    .row-text { flex: 1; min-width: 0; }
+    .row-text .name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
     }
-    /* Toggle Switch Styles */
-    .toggle-switch {
+    .row-text .desc {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+      margin-top: 1px;
+    }
+
+    .toggle {
       position: relative;
       display: inline-block;
-      width: 60px;
-      height: 34px;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
     }
-    .toggle-switch input {
+    .toggle input {
       opacity: 0;
       width: 0;
       height: 0;
     }
-    .slider {
+    .toggle .slider {
       position: absolute;
       cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #f44336;
-      transition: .4s;
-      border-radius: 34px;
+      inset: 0;
+      background: var(--border);
+      border-radius: 12px;
+      transition: background 0.2s;
     }
-    .slider:before {
+    .toggle .slider::before {
+      content: '';
       position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
+      width: 16px;
+      height: 16px;
+      top: 2px;
+      left: 2px;
+      background: white;
       border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
     }
-    input:checked + .slider {
-      background-color: #4CAF50;
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider::before { transform: translateX(16px); }
+    .toggle input:focus-visible + .slider {
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
-    input:checked + .slider:before {
-      transform: translateX(26px);
+
+    .row.dropdown {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
     }
-    .toggle-container {
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      background-color: #FAFAFA;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 32px 8px 12px;
+      font: inherit;
+      font-size: 12.5px;
+      color: var(--text);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      cursor: pointer;
+    }
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .footer {
       display: flex;
       align-items: center;
-    }
-    .links-container {
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-top: 20px;
-      height: 50px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-footer);
+      font-size: 11.5px;
     }
-    .bmc-container {
-      flex: 1;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-    }
-    .github-container {
-      flex: 1;
-      text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-    }
-    .github-link {
+    .footer a {
+      color: var(--text-footer);
+      text-decoration: none;
       display: inline-flex;
       align-items: center;
-      text-decoration: none;
-      color: #333;
-      font-weight: bold;
-      padding: 0;
-      border-radius: 6px;
-      transition: background-color 0.3s;
+      gap: 5px;
+      transition: color 0.15s;
     }
-    .github-link:hover {
-      background-color: #f6f8fa;
-    }
-    .github-logo {
-      width: 20px;
-      height: 20px;
-      margin-right: 6px;
-    }
-    .bmc-container img {
-      height: 40px;
-    }
-    .github-container img:last-child {
-      height: 20px;
-      margin-left: 6px;
-    }
+    .footer a:hover { color: var(--text); }
   </style>
 </head>
 <body>
-  <h2>Login Skip Settings</h2>
+  <div class="header">
+    <h2>Login Skip Settings</h2>
+  </div>
 
-  <div class="setting-row">
-    <div class="description">
-      <strong>Moodle Login Skip</strong>
-      <p>Automatically click the login button on Moodle</p>
+  <div class="group">
+    <div class="group-label">Sites</div>
+    <div class="row">
+      <div class="row-text">
+        <div class="name">Moodle</div>
+        <div class="desc">Auto-click the login button on Cambridge VLE</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="moodle-toggle">
+        <span class="slider"></span>
+      </label>
     </div>
-    <div class="toggle-container">
-      <label class="toggle-switch" for="moodle-toggle" title="Enable or disable Moodle Login Skip">
-        <input type="checkbox" id="moodle-toggle" checked title="Enable or disable Moodle Login Skip">
+    <div class="row">
+      <div class="row-text">
+        <div class="name">Panopto</div>
+        <div class="desc">Auto-click the login button on Panopto</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="panopto-toggle">
         <span class="slider"></span>
       </label>
     </div>
   </div>
 
-  <div class="setting-row">
-    <div class="description">
-      <strong>Panopto Login Skip</strong>
-      <p>Automatically click the login button on Panopto</p>
-    </div>
-    <div class="toggle-container">
-      <label class="toggle-switch" for="panopto-toggle" title="Enable or disable Panopto Login Skip">
-        <input type="checkbox" id="panopto-toggle" checked title="Enable or disable Panopto Login Skip">
+  <div class="group">
+    <div class="group-label">Behaviour</div>
+    <div class="row">
+      <div class="row-text">
+        <div class="name">Notifications</div>
+        <div class="desc">Toast when a login is skipped</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="notification-toggle">
         <span class="slider"></span>
       </label>
     </div>
-  </div>
-
-  <div class="setting-row">
-    <div class="description">
-      <strong>Notification</strong>
-      <p>Show notification after auto-clicking login button</p>
-    </div>
-    <div class="toggle-container">
-      <label class="toggle-switch" for="notification-toggle" title="Enable or disable Notification">
-        <input type="checkbox" id="notification-toggle" checked title="Enable or disable Notification">
-        <span class="slider"></span>
-      </label>
+    <div class="row dropdown">
+      <div class="row-text">
+        <div class="name">After logout</div>
+        <div class="desc">What to do when you sign out and land back on the login page</div>
+      </div>
+      <select id="logout-scope-select">
+        <option value="session">Don't auto-click in any tab (sticky)</option>
+        <option value="tab">Don't auto-click in this tab only</option>
+        <option value="off">Always auto-click (no suppression)</option>
+      </select>
     </div>
   </div>
 
-  <div class="setting-row">
-    <div class="description">
-      <strong>Sticky logout (across tabs)</strong>
-      <p>Stay signed out in all tabs until you manually click login. Off = only the tab where you logged out is suppressed.</p>
-    </div>
-    <div class="toggle-container">
-      <label class="toggle-switch" for="logout-scope-toggle" title="Enable or disable session-wide logout suppression">
-        <input type="checkbox" id="logout-scope-toggle" checked title="Enable or disable session-wide logout suppression">
-        <span class="slider"></span>
-      </label>
-    </div>
-  </div>
-
-  <div class="links-container">
-    <div class="bmc-container">
-      <a href="https://buymeacoffee.com/sileneer" target="_blank" rel="noopener">
-        <img src="src/bmc-button.png" alt="Buy Me A Coffee">
-      </a>
-    </div>
-
-    <div class="github-container">
-      <a class="github-link" href="https://github.com/sileneer/kill-cam-login" target="_blank" rel="noopener">
-        <img src="src/invertocat-logo/github-mark.svg" alt="GitHub" class="github-logo">
-        <img src="src/github-logo/GitHub_Logo.png" alt="GitHub">
-      </a>
-    </div>
+  <div class="footer">
+    <a href="https://buymeacoffee.com/sileneer" target="_blank" rel="noopener">
+      <span>☕</span><span>Buy me a coffee</span>
+    </a>
+    <a href="https://github.com/sileneer/skip-cam-login" target="_blank" rel="noopener">
+      <span>GitHub</span><span>↗</span>
+    </a>
   </div>
 
   <script src="settings.js"></script>

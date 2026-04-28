@@ -27,7 +27,7 @@ const SITES = [
 
 const OBSERVER_TIMEOUT_MS = 10000;
 const SESSION_FLAG_KEY = 'suppress_auto_login';
-const TAB_FLAG_KEY = 'killcam_suppress_auto_login';
+const TAB_FLAG_KEY = 'skipcam_suppress_auto_login';
 
 (async () => {
     try {
@@ -80,8 +80,17 @@ const TAB_FLAG_KEY = 'killcam_suppress_auto_login';
 
 function markLoggedOut() {
     try { sessionStorage.setItem(TAB_FLAG_KEY, '1'); } catch (err) {}
-    chrome.storage.session.set({ [SESSION_FLAG_KEY]: true })
-        .catch((err) => console.warn('Auto Clicker: failed to set session flag', err));
+    setSessionFlagIfEnabled();
+}
+
+async function setSessionFlagIfEnabled() {
+    try {
+        const scope = await getLogoutScope();
+        if (scope === 'off') return;
+        await chrome.storage.session.set({ [SESSION_FLAG_KEY]: true });
+    } catch (err) {
+        console.warn('Auto Clicker: failed to set session flag', err);
+    }
 }
 
 async function clearSuppression() {
@@ -94,16 +103,26 @@ async function clearSuppression() {
 }
 
 async function isSuppressed() {
+    const scope = await getLogoutScope();
+    if (scope === 'off') return false;
+
     let tabFlag = false;
     try { tabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
     if (tabFlag) return true;
 
-    const { logout_scope_session } = await chrome.storage.sync.get('logout_scope_session');
-    const sessionMode = logout_scope_session !== false;
-    if (!sessionMode) return false;
+    if (scope === 'tab') return false;
 
     const result = await chrome.storage.session.get(SESSION_FLAG_KEY);
     return result[SESSION_FLAG_KEY] === true;
+}
+
+async function getLogoutScope() {
+    const { logout_scope, logout_scope_session } =
+        await chrome.storage.sync.get(['logout_scope', 'logout_scope_session']);
+    if (logout_scope === 'session' || logout_scope === 'tab' || logout_scope === 'off') {
+        return logout_scope;
+    }
+    return logout_scope_session === false ? 'tab' : 'session';
 }
 
 function installLogoutInterceptor(site) {
