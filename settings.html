@@ -156,6 +156,23 @@
       transition: color 0.15s;
     }
     .footer a:hover { color: var(--text); }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #18181B;
+        --bg-footer: #09090B;
+        --text: #FAFAFA;
+        --text-secondary: #A1A1AA;
+        --text-muted: #71717A;
+        --text-footer: #D4D4D8;
+        --border: #27272A;
+        --border-subtle: #1F1F23;
+        --accent: #10B981;
+        --accent-soft: rgba(16, 185, 129, 0.25);
+      }
+      select { background-color: #27272A; }
+      .toggle .slider { background: #3F3F46; }
+    }
   </style>
 </head>
 <body>
