@@ -33,8 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     logoutScopeSelect.value = logoutScope;
 
     const validDelays = ['0', '500', '1000', '3000'];
-    const delayValue = settings.click_delay_ms != null ? String(settings.click_delay_ms) : '0';
-    clickDelaySelect.value = validDelays.includes(delayValue) ? delayValue : '0';
+    const rawDelay = settings.click_delay_ms != null ? String(settings.click_delay_ms) : '0';
+    const delayValue = validDelays.includes(rawDelay) ? rawDelay : '0';
+    clickDelaySelect.value = delayValue;
+    if (!validDelays.includes(rawDelay)) {
+        await chrome.storage.sync.set({ click_delay_ms: Number(delayValue) });
+    }
 
     moodleToggle.addEventListener('change', () => {
         chrome.storage.sync.set({ moodle_status: moodleToggle.checked });
