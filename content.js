@@ -177,7 +177,13 @@ function attachClearOnClick(site) {
     setTimeout(() => observer.disconnect(), OBSERVER_TIMEOUT_MS);
 }
 
-function runAutoClick(site) {
+async function runAutoClick(site) {
+    const { click_delay_ms } = await chrome.storage.sync.get('click_delay_ms');
+    const delay = Number.isFinite(click_delay_ms) && click_delay_ms > 0 ? click_delay_ms : 0;
+    if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
     if (tryClick(site)) return;
 
     const observer = new MutationObserver(() => {
