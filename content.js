@@ -44,6 +44,7 @@ const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
         }
 
         if (site.isAuthenticatedPage(url)) {
+            notifyState('none', 'authenticated');
             installLogoutInterceptor(site);
             return;
         }
@@ -56,11 +57,15 @@ const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
         const evaluation = await evaluateSuppression(site);
         if (!evaluation.allow) {
             console.log(`Auto Clicker: ${site.name} suppressed (${evaluation.reason})`);
+            const state = evaluation.reason === 'site-disabled' ? 'off' : 'pause';
+            notifyState(state, evaluation.reason);
             if (shouldAttachClearOnClick(evaluation.reason)) {
                 attachClearOnClick(site);
             }
             return;
         }
+
+        notifyState('active', 'allowed');
 
         if (document.visibilityState === 'visible') {
             runAutoClick(site);
@@ -191,6 +196,11 @@ async function runAutoClick(site) {
     });
     observer.observe(document.body, { childList: true, subtree: true });
     setTimeout(() => observer.disconnect(), OBSERVER_TIMEOUT_MS);
+}
+
+function notifyState(state, reason) {
+    chrome.runtime.sendMessage({ type: 'state_update', state, reason })
+        .catch(() => { /* background not ready; ignore */ });
 }
 
 function tryClick(site) {
