@@ -114,19 +114,17 @@ async function evaluateSuppression(site) {
         return { allow: true, reason: 'allowed' };
     }
 
+    if (scope === 'session') {
+        const session = await chrome.storage.session.get(SESSION_FLAG_KEY);
+        if (session[SESSION_FLAG_KEY] === true) {
+            return { allow: false, reason: 'logout-session' };
+        }
+    }
+
     let logoutTabFlag = false;
     try { logoutTabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
     if (logoutTabFlag) {
         return { allow: false, reason: 'logout-tab' };
-    }
-
-    if (scope === 'tab') {
-        return { allow: true, reason: 'allowed' };
-    }
-
-    const session = await chrome.storage.session.get(SESSION_FLAG_KEY);
-    if (session[SESSION_FLAG_KEY] === true) {
-        return { allow: false, reason: 'logout-session' };
     }
 
     return { allow: true, reason: 'allowed' };
