@@ -28,6 +28,7 @@ const SITES = [
 const OBSERVER_TIMEOUT_MS = 10000;
 const SESSION_FLAG_KEY = 'suppress_auto_login';
 const TAB_FLAG_KEY = 'skipcam_suppress_auto_login';
+const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
 
 (async () => {
     try {
@@ -48,19 +49,16 @@ const TAB_FLAG_KEY = 'skipcam_suppress_auto_login';
         }
 
         // Login page from here on.
-        const settings = await chrome.storage.sync.get(site.statusKey);
-        if (settings[site.statusKey] === false) {
-            console.log(`Auto Clicker: ${site.name} disabled in settings`);
-            return;
-        }
-
         if (document.referrer && SITES.some((s) => s.isLogout(document.referrer))) {
             markLoggedOut();
         }
 
-        if (await isSuppressed()) {
-            console.log(`Auto Clicker: ${site.name} suppressed (recent logout) — waiting for manual click`);
-            attachClearOnClick(site);
+        const evaluation = await evaluateSuppression(site);
+        if (!evaluation.allow) {
+            console.log(`Auto Clicker: ${site.name} suppressed (${evaluation.reason})`);
+            if (shouldAttachClearOnClick(evaluation.reason)) {
+                attachClearOnClick(site);
+            }
             return;
         }
 
@@ -85,7 +83,8 @@ function markLoggedOut() {
 
 async function setSessionFlagIfEnabled() {
     try {
-        const scope = await getLogoutScope();
+        const sync = await chrome.storage.sync.get(['logout_scope', 'logout_scope_session']);
+        const scope = normalizeLogoutScope(sync);
         if (scope === 'off') return;
         await chrome.storage.session.set({ [SESSION_FLAG_KEY]: true });
     } catch (err) {
@@ -95,6 +94,7 @@ async function setSessionFlagIfEnabled() {
 
 async function clearSuppression() {
     try { sessionStorage.removeItem(TAB_FLAG_KEY); } catch (err) {}
+    try { sessionStorage.removeItem(MANUAL_PAUSE_KEY); } catch (err) {}
     try {
         await chrome.storage.session.remove(SESSION_FLAG_KEY);
     } catch (err) {
@@ -102,27 +102,47 @@ async function clearSuppression() {
     }
 }
 
-async function isSuppressed() {
-    const scope = await getLogoutScope();
-    if (scope === 'off') return false;
+async function evaluateSuppression(site) {
+    const sync = await chrome.storage.sync.get([site.statusKey, 'logout_scope', 'logout_scope_session']);
 
-    let tabFlag = false;
-    try { tabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
-    if (tabFlag) return true;
+    if (sync[site.statusKey] === false) {
+        return { allow: false, reason: 'site-disabled' };
+    }
 
-    if (scope === 'tab') return false;
+    const scope = normalizeLogoutScope(sync);
+    if (scope === 'off') {
+        return { allow: true, reason: 'allowed' };
+    }
 
-    const result = await chrome.storage.session.get(SESSION_FLAG_KEY);
-    return result[SESSION_FLAG_KEY] === true;
+    let logoutTabFlag = false;
+    try { logoutTabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
+    if (logoutTabFlag) {
+        return { allow: false, reason: 'logout-tab' };
+    }
+
+    if (scope === 'tab') {
+        return { allow: true, reason: 'allowed' };
+    }
+
+    const session = await chrome.storage.session.get(SESSION_FLAG_KEY);
+    if (session[SESSION_FLAG_KEY] === true) {
+        return { allow: false, reason: 'logout-session' };
+    }
+
+    return { allow: true, reason: 'allowed' };
 }
 
-async function getLogoutScope() {
-    const { logout_scope, logout_scope_session } =
-        await chrome.storage.sync.get(['logout_scope', 'logout_scope_session']);
+function normalizeLogoutScope({ logout_scope, logout_scope_session }) {
     if (logout_scope === 'session' || logout_scope === 'tab' || logout_scope === 'off') {
         return logout_scope;
     }
     return logout_scope_session === false ? 'tab' : 'session';
+}
+
+function shouldAttachClearOnClick(reason) {
+    return reason === 'logout-tab'
+        || reason === 'logout-session'
+        || reason === 'manual-tab';
 }
 
 function installLogoutInterceptor(site) {
