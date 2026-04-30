@@ -112,6 +112,8 @@ async function requestReevaluateAll() {
 }
 
 async function handleLoginClicked(siteName) {
+    incrementClickCounter().catch((err) => console.warn('background: counter increment failed', err));
+
     const { notification_status } = await chrome.storage.sync.get('notification_status');
     if (notification_status === false) return;
 
@@ -126,4 +128,9 @@ async function handleLoginClicked(siteName) {
     } catch (err) {
         console.warn('background: chrome.notifications.create failed', err);
     }
+}
+
+async function incrementClickCounter() {
+    const { clicks_saved = 0 } = await chrome.storage.local.get('clicks_saved');
+    await chrome.storage.local.set({ clicks_saved: (clicks_saved || 0) + 1 });
 }

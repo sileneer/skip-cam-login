@@ -195,6 +195,14 @@
     }
     .footer a:hover { color: var(--text); }
 
+    .counter-row {
+      padding: 8px 18px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #18181B;
@@ -317,6 +325,9 @@
     </div>
   </div>
 
+  <div class="counter-row" id="counter-row" style="display: none;" title="Total auto-clicks since installing">
+    <span id="counter-text"></span>
+  </div>
   <div class="footer">
     <a href="https://buymeacoffee.com/sileneer" target="_blank" rel="noopener">
       <span>☕</span><span>Buy me a coffee</span>
