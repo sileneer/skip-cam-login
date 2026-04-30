@@ -69,12 +69,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({});
             return false;
         }
-        chrome.storage.sync.get('click_delay_ms').then(({ click_delay_ms = 0 }) => {
+        Promise.all([
+            chrome.storage.sync.get('click_delay_ms'),
+            chrome.storage.session.get('pause_until'),
+        ]).then(([sync, session]) => {
+            const click_delay_ms = sync.click_delay_ms ?? 0;
+            const pause_until = session.pause_until;
             const info = {
                 state: request.state,
                 reason: request.reason,
                 clickDelayMs: Number.isFinite(click_delay_ms) ? click_delay_ms : 0,
-                expiresAt: undefined, // Task 6 will populate from storage.session.pause_until
+                expiresAt: pause_until && pause_until > Date.now() ? pause_until : undefined,
             };
             tabStates.set(tabId, info);
             applyBadge(tabId, info);
