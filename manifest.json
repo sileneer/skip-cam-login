@@ -1,7 +1,7 @@
 {
   "name": "Skip Cam Login",
   "description": "Auto-click the login button on Moodle and Panopto so you skip the extra click.",
-  "version": "1.0",
+  "version": "1.1",
   "manifest_version": 3,
   "homepage_url": "https://github.com/sileneer/skip-cam-login",
   "icons": {
