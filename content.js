@@ -147,16 +147,21 @@ async function evaluateSuppression(site) {
         return { allow: false, reason: 'site-disabled' };
     }
 
+    const session = await chrome.storage.session.get(['pause_until', SESSION_FLAG_KEY]);
+    if (session.pause_until) {
+        if (session.pause_until > Date.now()) {
+            return { allow: false, reason: 'timed-pause' };
+        }
+        chrome.storage.session.remove('pause_until').catch(() => {});
+    }
+
     const scope = normalizeLogoutScope(sync);
     if (scope === 'off') {
         return { allow: true, reason: 'allowed' };
     }
 
-    if (scope === 'session') {
-        const session = await chrome.storage.session.get(SESSION_FLAG_KEY);
-        if (session[SESSION_FLAG_KEY] === true) {
-            return { allow: false, reason: 'logout-session' };
-        }
+    if (scope === 'session' && session[SESSION_FLAG_KEY] === true) {
+        return { allow: false, reason: 'logout-session' };
     }
 
     let logoutTabFlag = false;

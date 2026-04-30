@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const notificationToggle = document.getElementById('notification-toggle');
     const logoutScopeSelect = document.getElementById('logout-scope-select');
     const clickDelaySelect = document.getElementById('click-delay-select');
+    const pauseBtn = document.getElementById('pause-btn');
+    const cancelPauseBtn = document.getElementById('cancel-pause-btn');
+    const pauseDurationSelect = document.getElementById('pause-duration-select');
+    const timedPauseIdle = document.getElementById('timed-pause-idle');
+    const timedPauseActive = document.getElementById('timed-pause-active');
+    const pauseRemaining = document.getElementById('pause-remaining');
 
     const settings = await chrome.storage.sync.get([
         'moodle_status',
@@ -56,4 +62,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     clickDelaySelect.addEventListener('change', () => {
         chrome.storage.sync.set({ click_delay_ms: Number(clickDelaySelect.value) });
     });
+
+    let countdownTimer = null;
+
+    async function refreshPauseUi() {
+        const { pause_until } = await chrome.storage.session.get('pause_until');
+        const now = Date.now();
+        if (!pause_until || pause_until <= now) {
+            timedPauseIdle.style.display = '';
+            timedPauseActive.style.display = 'none';
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
+            if (pause_until && pause_until <= now) {
+                await chrome.storage.session.remove('pause_until');
+            }
+            return;
+        }
+        timedPauseIdle.style.display = 'none';
+        timedPauseActive.style.display = '';
+        renderRemaining(pause_until);
+        if (!countdownTimer) {
+            countdownTimer = setInterval(() => renderRemaining(pause_until), 1000);
+        }
+    }
+
+    function renderRemaining(target) {
+        const ms = Math.max(0, target - Date.now());
+        if (ms === 0) {
+            refreshPauseUi();
+            return;
+        }
+        const totalMin = Math.ceil(ms / 60000);
+        if (totalMin === 1) {
+            pauseRemaining.textContent = '1 more minute';
+        } else if (totalMin < 60) {
+            pauseRemaining.textContent = `${totalMin} more minutes`;
+        } else {
+            const hr = Math.floor(totalMin / 60);
+            const min = totalMin % 60;
+            pauseRemaining.textContent = min === 0
+                ? `${hr}h more`
+                : `${hr}h ${min}m more`;
+        }
+    }
+
+    pauseBtn.addEventListener('click', async () => {
+        const duration = Number(pauseDurationSelect.value);
+        if (!Number.isFinite(duration) || duration <= 0) return;
+        await chrome.storage.session.set({ pause_until: Date.now() + duration });
+        await refreshPauseUi();
+    });
+
+    cancelPauseBtn.addEventListener('click', async () => {
+        await chrome.storage.session.remove('pause_until');
+        await refreshPauseUi();
+    });
+
+    await refreshPauseUi();
 });

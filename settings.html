@@ -138,6 +138,44 @@
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
+    .btn-primary, .btn-secondary {
+      border: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover { filter: brightness(0.95); }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: var(--border-subtle); }
+    .btn-secondary:disabled,
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .pause-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .pause-controls select {
+      width: auto;
+      padding: 7px 28px 7px 10px;
+      font-size: 12px;
+    }
+
     .footer {
       display: flex;
       align-items: center;
@@ -172,6 +210,8 @@
       }
       select { background-color: #27272A; }
       .toggle .slider { background: #3F3F46; }
+      .btn-secondary { color: var(--text); border-color: var(--border); }
+      .btn-secondary:hover { background: var(--border); }
     }
   </style>
 </head>
@@ -238,6 +278,31 @@
         <option value="tab">Don't auto-click in this tab only</option>
         <option value="off">Always auto-click (no suppression)</option>
       </select>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-label">Quick actions</div>
+    <div class="row" id="timed-pause-active" style="display: none;">
+      <div class="row-text">
+        <div class="name">Paused for <span id="pause-remaining">…</span></div>
+        <div class="desc">Auto-click is suspended on every site</div>
+      </div>
+      <button id="cancel-pause-btn" class="btn-secondary">Cancel</button>
+    </div>
+    <div class="row" id="timed-pause-idle">
+      <div class="row-text">
+        <div class="name">Pause everywhere</div>
+        <div class="desc">Suspend auto-click for a set time</div>
+      </div>
+      <div class="pause-controls">
+        <select id="pause-duration-select">
+          <option value="900000">15 min</option>
+          <option value="3600000" selected>1 hour</option>
+          <option value="14400000">4 hours</option>
+        </select>
+        <button id="pause-btn" class="btn-primary">Pause</button>
+      </div>
     </div>
   </div>
 
