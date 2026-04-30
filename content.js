@@ -81,6 +81,39 @@ const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
     }
 })();
 
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request?.type === 'reevaluate') {
+        reevaluateNow().finally(() => sendResponse({}));
+        return true;
+    }
+    return false;
+});
+
+async function reevaluateNow() {
+    const url = window.location.href;
+    const site = SITES.find((s) =>
+        s.isLogin(url) || s.isLogout(url) || s.isAuthenticatedPage(url));
+    if (!site) {
+        notifyState('none', 'off-domain');
+        return;
+    }
+    if (site.isLogout(url)) {
+        notifyState('none', 'logout-page');
+        return;
+    }
+    if (site.isAuthenticatedPage(url)) {
+        notifyState('none', 'authenticated');
+        return;
+    }
+    const evaluation = await evaluateSuppression(site);
+    if (!evaluation.allow) {
+        const state = evaluation.reason === 'site-disabled' ? 'off' : 'pause';
+        notifyState(state, evaluation.reason);
+    } else {
+        notifyState('active', 'allowed');
+    }
+}
+
 function markLoggedOut() {
     try { sessionStorage.setItem(TAB_FLAG_KEY, '1'); } catch (err) {}
     setSessionFlagIfEnabled();
