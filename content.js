@@ -86,6 +86,20 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
         reevaluateNow().finally(() => sendResponse({}));
         return true;
     }
+    if (request?.type === 'get_manual_pause_state') {
+        let paused = false;
+        try { paused = sessionStorage.getItem(MANUAL_PAUSE_KEY) === '1'; } catch (err) {}
+        sendResponse({ paused });
+        return false;
+    }
+    if (request?.type === 'set_manual_pause') {
+        try {
+            if (request.value) sessionStorage.setItem(MANUAL_PAUSE_KEY, '1');
+            else sessionStorage.removeItem(MANUAL_PAUSE_KEY);
+        } catch (err) {}
+        reevaluateNow().finally(() => sendResponse({}));
+        return true;
+    }
     return false;
 });
 
@@ -156,9 +170,6 @@ async function evaluateSuppression(site) {
     }
 
     const scope = normalizeLogoutScope(sync);
-    if (scope === 'off') {
-        return { allow: true, reason: 'allowed' };
-    }
 
     if (scope === 'session' && session[SESSION_FLAG_KEY] === true) {
         return { allow: false, reason: 'logout-session' };
@@ -166,8 +177,14 @@ async function evaluateSuppression(site) {
 
     let logoutTabFlag = false;
     try { logoutTabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
-    if (logoutTabFlag) {
+    if (scope !== 'off' && logoutTabFlag) {
         return { allow: false, reason: 'logout-tab' };
+    }
+
+    let manualPause = false;
+    try { manualPause = sessionStorage.getItem(MANUAL_PAUSE_KEY) === '1'; } catch (err) {}
+    if (manualPause) {
+        return { allow: false, reason: 'manual-tab' };
     }
 
     return { allow: true, reason: 'allowed' };
