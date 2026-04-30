@@ -12,7 +12,7 @@ const BADGE_BY_STATE = {
     none:   { text: '', color: '#00000000' },
 };
 
-function tooltipFor(state, reason, clickDelayMs) {
+function tooltipFor(state, reason, clickDelayMs, expiresAt) {
     const base = 'Skip Cam Login';
     if (state === 'active') {
         const tail = clickDelayMs > 0
@@ -22,6 +22,11 @@ function tooltipFor(state, reason, clickDelayMs) {
     }
     if (state === 'off') return base + ' — Disabled in settings for this site.';
     if (state === 'pause') {
+        if (reason === 'timed-pause' && expiresAt && expiresAt > Date.now()) {
+            const minutes = Math.max(1, Math.ceil((expiresAt - Date.now()) / 60000));
+            const word = minutes === 1 ? 'minute' : 'minutes';
+            return `${base} — Paused for ${minutes} more ${word}.`;
+        }
         const reasons = {
             'timed-pause': 'Paused for now (timed).',
             'logout-session': 'Paused after sign-out (all tabs).',
@@ -37,12 +42,10 @@ async function applyBadge(tabId, info) {
     const cfg = BADGE_BY_STATE[info.state] || BADGE_BY_STATE.none;
     try {
         await chrome.action.setBadgeText({ tabId, text: cfg.text });
-        if (cfg.text) {
-            await chrome.action.setBadgeBackgroundColor({ tabId, color: cfg.color });
-        }
+        await chrome.action.setBadgeBackgroundColor({ tabId, color: cfg.color });
         await chrome.action.setTitle({
             tabId,
-            title: tooltipFor(info.state, info.reason, info.clickDelayMs),
+            title: tooltipFor(info.state, info.reason, info.clickDelayMs, info.expiresAt),
         });
     } catch (err) {
         // Tab likely closed; ignore.
@@ -71,6 +74,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 state: request.state,
                 reason: request.reason,
                 clickDelayMs: Number.isFinite(click_delay_ms) ? click_delay_ms : 0,
+                expiresAt: undefined, // Task 6 will populate from storage.session.pause_until
             };
             tabStates.set(tabId, info);
             applyBadge(tabId, info);
