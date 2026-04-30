@@ -149,6 +149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tab = await getActiveTab();
         if (!tab?.id) {
             manualPauseBtn.disabled = true;
+            manualPauseBtn.textContent = 'Pause';
+            manualPauseBtn.dataset.paused = '0';
+            manualPauseLabel.textContent = 'Pause on this tab';
+            manualPauseDesc.textContent = 'No active tab';
             return;
         }
         let response;
@@ -157,6 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             manualPauseBtn.disabled = true;
             manualPauseBtn.textContent = 'Pause';
+            manualPauseBtn.dataset.paused = '0';
             manualPauseLabel.textContent = 'Pause on this tab';
             manualPauseDesc.textContent = 'Open Moodle or Panopto to use this';
             return;
@@ -164,10 +169,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         manualPauseBtn.disabled = false;
         if (response?.paused) {
             manualPauseBtn.textContent = 'Resume';
+            manualPauseBtn.dataset.paused = '1';
             manualPauseLabel.textContent = 'Paused on this tab';
             manualPauseDesc.textContent = 'Auto-click is paused for this tab';
         } else {
             manualPauseBtn.textContent = 'Pause';
+            manualPauseBtn.dataset.paused = '0';
             manualPauseLabel.textContent = 'Pause on this tab';
             manualPauseDesc.textContent = 'Stop auto-click here until you close the tab';
         }
@@ -176,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     manualPauseBtn.addEventListener('click', async () => {
         const tab = await getActiveTab();
         if (!tab?.id) return;
-        const isCurrentlyPaused = manualPauseBtn.textContent === 'Resume';
+        const isCurrentlyPaused = manualPauseBtn.dataset.paused === '1';
         try {
             await chrome.tabs.sendMessage(tab.id, {
                 type: 'set_manual_pause',
