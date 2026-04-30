@@ -17,6 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualPauseBtn = document.getElementById('manual-pause-btn');
     const manualPauseLabel = document.getElementById('manual-pause-label');
     const manualPauseDesc = document.getElementById('manual-pause-desc');
+    const counterRow = document.getElementById('counter-row');
+    const counterText = document.getElementById('counter-text');
 
     const settings = await chrome.storage.sync.get([
         'moodle_status',
@@ -196,4 +198,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await refreshManualPauseUi();
+
+    const local = await chrome.storage.local.get('clicks_saved');
+    const count = local.clicks_saved || 0;
+    if (count > 0) {
+        counterText.textContent = count === 1
+            ? '1 click saved'
+            : `${count.toLocaleString('en-US')} clicks saved`;
+        counterRow.style.display = '';
+    }
 });
