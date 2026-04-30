@@ -59,6 +59,10 @@ const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
             console.log(`Auto Clicker: ${site.name} suppressed (${evaluation.reason})`);
             const state = evaluation.reason === 'site-disabled' ? 'off' : 'pause';
             notifyState(state, evaluation.reason);
+            chrome.runtime.sendMessage({
+                type: 'append_log',
+                entry: { site: site.name, action: 'suppressed', reason: evaluation.reason },
+            }).catch(() => {});
             if (shouldAttachClearOnClick(evaluation.reason)) {
                 attachClearOnClick(site);
             }
@@ -246,11 +250,23 @@ async function runAutoClick(site) {
 
     if (tryClick(site)) return;
 
+    let succeeded = false;
     const observer = new MutationObserver(() => {
-        if (tryClick(site)) observer.disconnect();
+        if (tryClick(site)) {
+            succeeded = true;
+            observer.disconnect();
+        }
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => observer.disconnect(), OBSERVER_TIMEOUT_MS);
+    setTimeout(() => {
+        observer.disconnect();
+        if (!succeeded) {
+            chrome.runtime.sendMessage({
+                type: 'append_log',
+                entry: { site: site.name, action: 'failed', reason: 'button-not-found' },
+            }).catch(() => {});
+        }
+    }, OBSERVER_TIMEOUT_MS);
 }
 
 function notifyState(state, reason) {
