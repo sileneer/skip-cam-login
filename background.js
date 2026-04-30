@@ -87,6 +87,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
         return true;
     }
+    if (request?.type === 'append_log') {
+        appendLogEntry(request.entry || {})
+            .catch((err) => console.warn('background: log append failed', err))
+            .finally(() => sendResponse({}));
+        return true;
+    }
     return false;
 });
 
@@ -113,6 +119,8 @@ async function requestReevaluateAll() {
 
 async function handleLoginClicked(siteName) {
     incrementClickCounter().catch((err) => console.warn('background: counter increment failed', err));
+    appendLogEntry({ site: siteName, action: 'clicked' })
+        .catch((err) => console.warn('background: log append failed', err));
 
     const { notification_status } = await chrome.storage.sync.get('notification_status');
     if (notification_status === false) return;
@@ -133,4 +141,16 @@ async function handleLoginClicked(siteName) {
 async function incrementClickCounter() {
     const { clicks_saved = 0 } = await chrome.storage.local.get('clicks_saved');
     await chrome.storage.local.set({ clicks_saved: (clicks_saved || 0) + 1 });
+}
+
+const LOG_MAX_ENTRIES = 50;
+
+async function appendLogEntry(partial) {
+    const entry = { ts: Date.now(), ...partial };
+    const { activity_log = [] } = await chrome.storage.local.get('activity_log');
+    activity_log.unshift(entry);
+    if (activity_log.length > LOG_MAX_ENTRIES) {
+        activity_log.length = LOG_MAX_ENTRIES;
+    }
+    await chrome.storage.local.set({ activity_log });
 }
