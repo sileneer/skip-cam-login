@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const timedPauseIdle = document.getElementById('timed-pause-idle');
     const timedPauseActive = document.getElementById('timed-pause-active');
     const pauseRemaining = document.getElementById('pause-remaining');
+    const manualPauseBtn = document.getElementById('manual-pause-btn');
+    const manualPauseLabel = document.getElementById('manual-pause-label');
+    const manualPauseDesc = document.getElementById('manual-pause-desc');
 
     const settings = await chrome.storage.sync.get([
         'moodle_status',
@@ -136,4 +139,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     await refreshPauseUi();
+
+    async function getActiveTab() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        return tabs[0];
+    }
+
+    async function refreshManualPauseUi() {
+        const tab = await getActiveTab();
+        if (!tab?.id) {
+            manualPauseBtn.disabled = true;
+            return;
+        }
+        let response;
+        try {
+            response = await chrome.tabs.sendMessage(tab.id, { type: 'get_manual_pause_state' });
+        } catch (err) {
+            manualPauseBtn.disabled = true;
+            manualPauseBtn.textContent = 'Pause';
+            manualPauseLabel.textContent = 'Pause on this tab';
+            manualPauseDesc.textContent = 'Open Moodle or Panopto to use this';
+            return;
+        }
+        manualPauseBtn.disabled = false;
+        if (response?.paused) {
+            manualPauseBtn.textContent = 'Resume';
+            manualPauseLabel.textContent = 'Paused on this tab';
+            manualPauseDesc.textContent = 'Auto-click is paused for this tab';
+        } else {
+            manualPauseBtn.textContent = 'Pause';
+            manualPauseLabel.textContent = 'Pause on this tab';
+            manualPauseDesc.textContent = 'Stop auto-click here until you close the tab';
+        }
+    }
+
+    manualPauseBtn.addEventListener('click', async () => {
+        const tab = await getActiveTab();
+        if (!tab?.id) return;
+        const isCurrentlyPaused = manualPauseBtn.textContent === 'Resume';
+        try {
+            await chrome.tabs.sendMessage(tab.id, {
+                type: 'set_manual_pause',
+                value: !isCurrentlyPaused,
+            });
+        } catch (err) {
+            return;
+        }
+        await refreshManualPauseUi();
+    });
+
+    await refreshManualPauseUi();
 });
