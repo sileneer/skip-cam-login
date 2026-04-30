@@ -85,6 +85,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
 });
 
+const WATCHED_SYNC_KEYS = ['moodle_status', 'panopto_status', 'logout_scope', 'logout_scope_session', 'click_delay_ms'];
+const WATCHED_SESSION_KEYS = ['suppress_auto_login', 'pause_until'];
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    const triggered =
+        (area === 'sync' && WATCHED_SYNC_KEYS.some((k) => k in changes)) ||
+        (area === 'session' && WATCHED_SESSION_KEYS.some((k) => k in changes));
+    if (!triggered) return;
+    requestReevaluateAll();
+});
+
+async function requestReevaluateAll() {
+    let tabs;
+    try { tabs = await chrome.tabs.query({}); } catch (err) { return; }
+    for (const tab of tabs) {
+        if (tab.id == null) continue;
+        chrome.tabs.sendMessage(tab.id, { type: 'reevaluate' })
+            .catch(() => { /* not a content-script tab; ignore */ });
+    }
+}
+
 async function handleLoginClicked(siteName) {
     const { notification_status } = await chrome.storage.sync.get('notification_status');
     if (notification_status === false) return;
