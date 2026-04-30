@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let countdownTimer = null;
 
     async function refreshPauseUi() {
+        const previouslyFocused = document.activeElement;
         const { pause_until } = await chrome.storage.session.get('pause_until');
         const now = Date.now();
         if (!pause_until || pause_until <= now) {
@@ -78,6 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pause_until && pause_until <= now) {
                 await chrome.storage.session.remove('pause_until');
             }
+            if (previouslyFocused === cancelPauseBtn) {
+                pauseBtn.focus();
+            }
             return;
         }
         timedPauseIdle.style.display = 'none';
@@ -86,11 +90,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!countdownTimer) {
             countdownTimer = setInterval(() => renderRemaining(pause_until), 1000);
         }
+        if (previouslyFocused === pauseBtn) {
+            cancelPauseBtn.focus();
+        }
     }
 
     function renderRemaining(target) {
         const ms = Math.max(0, target - Date.now());
         if (ms === 0) {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
             refreshPauseUi();
             return;
         }
@@ -116,6 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     cancelPauseBtn.addEventListener('click', async () => {
+        if (countdownTimer) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+        }
         await chrome.storage.session.remove('pause_until');
         await refreshPauseUi();
     });
