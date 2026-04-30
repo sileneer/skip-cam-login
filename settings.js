@@ -19,6 +19,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualPauseDesc = document.getElementById('manual-pause-desc');
     const counterRow = document.getElementById('counter-row');
     const counterText = document.getElementById('counter-text');
+    const logHeader = document.getElementById('log-header');
+    const logBody = document.getElementById('log-body');
+    const logChevron = document.getElementById('log-chevron');
+    const logList = document.getElementById('log-list');
+    const logClear = document.getElementById('log-clear');
 
     const settings = await chrome.storage.sync.get([
         'moodle_status',
@@ -207,4 +212,79 @@ document.addEventListener('DOMContentLoaded', async () => {
             : `${count.toLocaleString('en-US')} clicks saved`;
         counterRow.style.display = '';
     }
+
+    const SUPPRESSION_LABELS = {
+        'site-disabled': 'Suppressed (site disabled)',
+        'timed-pause': 'Suppressed (timed pause)',
+        'logout-session': 'Suppressed (after sign-out, all tabs)',
+        'logout-tab': 'Suppressed (after sign-out, this tab)',
+        'manual-tab': 'Suppressed (paused on this tab)',
+    };
+
+    function relativeTime(ts) {
+        const ms = Math.max(0, Date.now() - ts);
+        const min = Math.floor(ms / 60000);
+        if (min < 1) return 'just now';
+        if (min < 60) return `${min}m ago`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return `${hr}h ago`;
+        const day = Math.floor(hr / 24);
+        return `${day}d ago`;
+    }
+
+    function actionLabel(entry) {
+        if (entry.action === 'clicked') return 'Auto-clicked';
+        if (entry.action === 'failed') return `Failed (${entry.reason || 'unknown'})`;
+        if (entry.action === 'suppressed') {
+            return SUPPRESSION_LABELS[entry.reason] || 'Suppressed';
+        }
+        return entry.action || 'Unknown';
+    }
+
+    function renderLogEntry(entry) {
+        const row = document.createElement('div');
+        row.className = 'log-entry';
+        const ts = document.createElement('span');
+        ts.className = 'ts';
+        ts.textContent = relativeTime(entry.ts);
+        const body = document.createElement('span');
+        body.className = 'body';
+        body.textContent = `${entry.site || '—'} · ${actionLabel(entry)}`;
+        row.appendChild(ts);
+        row.appendChild(body);
+        return row;
+    }
+
+    async function renderLog() {
+        const { activity_log = [] } = await chrome.storage.local.get('activity_log');
+        logList.replaceChildren();
+        if (!activity_log.length) {
+            const empty = document.createElement('div');
+            empty.className = 'log-empty';
+            empty.textContent = 'No activity yet.';
+            logList.appendChild(empty);
+            return;
+        }
+        for (const entry of activity_log) {
+            logList.appendChild(renderLogEntry(entry));
+        }
+    }
+
+    logHeader.addEventListener('click', async () => {
+        const isOpen = logBody.style.display !== 'none';
+        if (isOpen) {
+            logBody.style.display = 'none';
+            logChevron.classList.remove('open');
+        } else {
+            logBody.style.display = '';
+            logChevron.classList.add('open');
+            await renderLog();
+        }
+    });
+
+    logClear.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await chrome.storage.local.remove('activity_log');
+        await renderLog();
+    });
 });

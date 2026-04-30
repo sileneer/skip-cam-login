@@ -203,6 +203,54 @@
       text-align: center;
     }
 
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+    .log-header:hover { color: var(--text-secondary); }
+    .chevron {
+      transition: transform 0.15s;
+      font-size: 11px;
+    }
+    .chevron.open { transform: rotate(180deg); }
+    .log-body { padding: 0 18px 8px; }
+    .log-entry {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 11.5px;
+    }
+    .log-entry .ts {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      min-width: 56px;
+    }
+    .log-entry .body {
+      color: var(--text-secondary);
+      flex: 1;
+      min-width: 0;
+    }
+    .log-empty {
+      padding: 8px 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 11.5px;
+    }
+    .log-clear {
+      display: block;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: none;
+      text-align: right;
+    }
+    .log-clear:hover { color: var(--text-secondary); }
+
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #18181B;
@@ -322,6 +370,17 @@
         </select>
         <button id="pause-btn" class="btn-primary">Pause</button>
       </div>
+    </div>
+  </div>
+
+  <div class="group log-group">
+    <div class="group-label log-header" id="log-header">
+      <span>Recent activity</span>
+      <span class="chevron" id="log-chevron">▾</span>
+    </div>
+    <div class="log-body" id="log-body" style="display: none;">
+      <div id="log-list"></div>
+      <a class="log-clear" id="log-clear" href="#">Clear log</a>
     </div>
   </div>
 
