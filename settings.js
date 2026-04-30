@@ -270,20 +270,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    logHeader.addEventListener('click', async () => {
+    async function toggleLogVisibility() {
         const isOpen = logBody.style.display !== 'none';
         if (isOpen) {
             logBody.style.display = 'none';
             logChevron.classList.remove('open');
+            logHeader.setAttribute('aria-expanded', 'false');
         } else {
             logBody.style.display = '';
             logChevron.classList.add('open');
+            logHeader.setAttribute('aria-expanded', 'true');
             await renderLog();
+        }
+    }
+
+    logHeader.addEventListener('click', toggleLogVisibility);
+    logHeader.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleLogVisibility();
         }
     });
 
-    logClear.addEventListener('click', async (event) => {
-        event.preventDefault();
+    logClear.addEventListener('click', async () => {
         await chrome.storage.local.remove('activity_log');
         await renderLog();
     });
