@@ -1,181 +1,176 @@
 # Skip Cam Login
 
-🚀 **Skip the hassle of repeated logins!** This Chrome extension automatically clicks login buttons on Cambridge University's Moodle (VLE) and Panopto platforms, getting you to your course content faster.
+Skip Cam Login is a small Chrome extension for Cambridge University Moodle and Panopto pages. It removes the extra gateway click by automatically pressing the public login button when you land on a supported login page.
 
-## ✨ Key Features
+It does not enter credentials, handle Raven/SAML, read course content, or send data anywhere. All settings and activity data stay in Chrome storage on your browser.
 
-- **🎯 Automatic Login**: Instantly clicks login buttons on Moodle and Panopto pages
-- **⏱️ Configurable Click Delay**: Choose instant or 0.5 / 1 / 3 seconds before the auto-click fires
-- **⏸️ Pause This Tab**: Stop auto-click on a single tab without disabling the extension
-- **⏰ Quick Timed Pause**: Suspend auto-click everywhere for 15 minutes, 1 hour, or 4 hours
-- **🚪 Logout-aware**: Stops auto-clicking after you sign out, so you can switch accounts or stay signed out
-- **🟠 Toolbar Badge**: At-a-glance icon state shows whether auto-click is active, off, or paused — with a tooltip explaining *why*
-- **🌙 Dark Mode**: Popup automatically follows your OS theme
-- **📊 Clicks Saved Counter**: See how many auto-clicks the extension has saved you
-- **📋 Recent Activity Log**: Collapsible log of the last 50 auto-clicks, suppressions, and failures (stored locally)
-- **🔔 Smart Notifications**: Optional desktop notifications when auto-click fires
-- **🔒 Privacy Focused**: Only activates on specific Cambridge University domains
+## Supported Sites
 
-## 🖥️ Supported Sites
+- Cambridge Moodle / VLE: `https://www.vle.cam.ac.uk/*`
+- Cambridge Panopto: `https://cambridgelectures.cloud.panopto.eu/Panopto/*`
 
-- **Cambridge VLE (Moodle)**: `https://www.vle.cam.ac.uk/*` *(auto-click runs on the login page; per-tab pause can be set from any Moodle page)*
-- **Cambridge Panopto**: `https://cambridgelectures.cloud.panopto.eu/Panopto/*` *(auto-click runs on the login page; per-tab pause can be set from any Panopto page)*
+The content script is available across those paths so the popup can pause or resume the current tab from logged-in pages. Auto-clicking itself only happens on the configured login pages.
 
-## 📦 Installation
+## Features
 
-### From Chrome Web Store (Recommended)
-*Coming soon - extension will be published to the Chrome Web Store*
+- Auto-clicks the Moodle and Panopto login buttons.
+- Per-site toggles for Moodle and Panopto.
+- Optional desktop notification after an auto-click.
+- Configurable click delay: instant, 0.5 seconds, 1 second, or 3 seconds.
+- Pause on the current tab until that tab is closed or resumed.
+- Pause everywhere for 15 minutes, 1 hour, or 4 hours.
+- Logout-aware suppression, so signing out does not immediately send you back through login.
+- Toolbar badge and tooltip showing whether the current tab is active, paused, or disabled.
+- Popup follows the system light/dark theme.
+- Local clicks-saved counter.
+- Local recent activity log capped at the 50 newest entries.
 
-### Manual Installation (Developer Mode)
-1. Download or clone this repository
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" in the top right corner
-4. Click "Load unpacked" and select the extension folder
-5. The Skip Cam Login extension should now appear in your extensions list
+## Installation
 
-## 🚀 Usage
+### Chrome Web Store
 
-1. **Install the extension** using one of the methods above
-2. **Navigate** to any supported Cambridge University login page
-3. **Watch it work!** The extension will automatically click the login button
-4. **Configure settings** by clicking the extension icon in your browser toolbar
+Install Skip Cam Login from the Chrome Web Store:
 
-### Settings Options
+https://chromewebstore.google.com/detail/ccjmlaicaepkofiiiomgnlfljnegfced
 
-**Sites**
-- **Moodle**: Toggle automatic login for Cambridge VLE/Moodle
-- **Panopto**: Toggle automatic login for Cambridge Panopto
+### Load Unpacked
 
-**This tab**
-- **Pause on this tab**: Stop auto-click on the current tab until you close the tab (or click "Resume"). Works from any Moodle or Panopto page, including logged-in pages — useful if you want to log in manually with a different account.
+1. Clone or download this repository.
+2. Open Chrome and go to `chrome://extensions/`.
+3. Enable `Developer mode`.
+4. Click `Load unpacked`.
+5. Select the repository folder.
 
-**Behaviour**
-- **Notifications**: Toast when a login is skipped
-- **Delay before click**: Instant, 0.5 s, 1 s, or 3 s — gives you time to glimpse the page before it redirects
-- **After logout**: Choose what happens after you sign out and land back on the login page — *sticky* (don't auto-click in any tab until you log in manually), *this tab only*, or *off* (always auto-click)
+The extension icon opens the settings popup.
 
-**Quick actions**
-- **Pause everywhere**: Suspend auto-click on every site for 15 min / 1 hour / 4 hours, with a live countdown. "Cancel" lifts the pause early.
+## Using the Popup
 
-**Footer**
-- **Recent activity** (collapsible): The last 50 auto-clicks, suppressions, and failures, with relative timestamps. "Clear log" wipes it.
-- **Clicks saved counter**: Lifetime count of how many auto-clicks the extension has performed.
+Open the extension from the Chrome toolbar.
 
-## 🔧 How It Works
+The `Sites` section enables or disables auto-clicking for Moodle and Panopto independently.
 
-The extension uses content scripts that run on Cambridge University domains. When you visit a login page, it evaluates the following in order:
+The `This tab` section pauses auto-clicking only for the active tab. It works from supported Moodle and Panopto pages, including logged-in pages, because the content script is loaded across the supported site paths.
 
-1. **Site disabled?** If you've toggled this site off in settings → skip.
-2. **Timed pause active?** If "Pause everywhere" is running and not yet expired → skip.
-3. **Logout suppression?** If you recently signed out (depending on the "After logout" scope) → skip and wait for a manual click.
-4. **Tab manually paused?** If you clicked "Pause on this tab" earlier → skip.
-5. **Otherwise** → wait for the configured click delay and click the login button.
+The `Behaviour` section controls notifications, click delay, and what happens after logout:
 
-Each outcome is reflected in:
-- The **toolbar icon badge** (green/empty = active, orange "II" = paused, grey "OFF" = disabled) and its hover tooltip explaining *why*.
-- The optional **desktop notification** when an auto-click fires.
-- The **activity log** in the popup, capped at the 50 most recent entries.
+- `Don't auto-click in any tab (sticky)` stores a browser-session suppression flag after logout.
+- `Don't auto-click in this tab only` suppresses the tab that logged out.
+- `Always auto-click (no suppression)` disables logout suppression.
 
-Manually clicking the login button on a suppressed page clears the suppression flags so future visits auto-click again.
+The `Quick actions` section pauses auto-clicking everywhere for a fixed time. The pause uses `chrome.storage.session`, so it is cleared when the browser session ends.
 
-## 🛠️ Development
+The footer shows the local clicks-saved counter once at least one click has been saved. `Recent activity` shows local click, suppression, and failure events.
 
-### Prerequisites
-- Chrome browser
-- Basic knowledge of Chrome extension development
+## How It Works
 
-### File Structure
-```
+On a supported login page, `content.js` evaluates the current state in this order:
+
+1. Site disabled in settings.
+2. Timed global pause.
+3. Logout suppression for the browser session.
+4. Logout suppression for the current tab.
+5. Manual pause for the current tab.
+6. Configured click delay.
+7. Login button click.
+
+Suppressed attempts and failed button lookups are written to the local activity log. Successful auto-clicks increment the local clicks-saved counter and can trigger a desktop notification.
+
+`background.js` owns extension-wide browser behavior: toolbar badge state, tooltip text, notifications, log writes, and counter updates. The popup in `settings.html` and `settings.js` reads and writes user settings.
+
+## Privacy and Permissions
+
+The extension requests:
+
+- `storage`: settings, session pause flags, local counter, and local activity log.
+- `notifications`: optional desktop notifications after auto-clicking.
+
+The extension only runs on the two supported Cambridge domains listed above. It does not collect analytics, store URLs in the activity log, sync the activity log, or transmit personal data.
+
+Activity log entries contain only:
+
+- timestamp
+- site name: `Moodle` or `Panopto`
+- action: `clicked`, `suppressed`, or `failed`
+- reason, when applicable
+
+## Development
+
+This is a Manifest V3 Chrome extension with no framework, bundler, or automated test suite.
+
+Project files:
+
+```text
 skip-cam-login/
-├── manifest.json          # Extension configuration
-├── content.js             # Main logic for auto-clicking
-├── background.js          # Background service worker
-├── settings.html          # Popup settings interface
-├── settings.js            # Settings functionality
-├── icon.png               # Extension icon
-├── package.ps1            # Build a clean Web Store upload zip
-└── src/                   # Asset sources (not bundled)
+|-- manifest.json
+|-- content.js
+|-- background.js
+|-- settings.html
+|-- settings.js
+|-- icon.png
+|-- package.ps1
+|-- docs/
+|   `-- superpowers/
+`-- src/
+    `-- asset sources
 ```
 
-### Building the Web Store package
+Manual development loop:
 
-```powershell
-./package.ps1
-```
+1. Load the repository through `chrome://extensions/`.
+2. After editing source files, click reload on the extension card.
+3. Test Moodle and Panopto login pages.
+4. Inspect the service worker console from the extension details page when debugging background behavior.
 
-This produces `skip-cam-login.zip` containing only the runtime files Chrome needs. Upload that zip to the Chrome Web Store dashboard.
+Useful manual checks:
 
-### Contributing
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Test thoroughly on both Moodle and Panopto
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+- Moodle auto-click still fires when enabled.
+- Panopto auto-click still fires when enabled.
+- Per-site toggles suppress only the selected site.
+- Logout suppression prevents immediate re-login.
+- Manual click on a suppressed login page clears logout/manual suppression.
+- Click delay is honored.
+- Timed pause suppresses both sites and can be cancelled.
+- Toolbar badge matches active, paused, and off states.
+- Activity log stays local and caps at 50 entries.
+- `./package.ps1` creates a zip with only runtime files.
 
-## 🐛 Troubleshooting
+## Version History
 
-### Extension Not Working?
-- Ensure you're on a supported Cambridge University domain
-- Check that the extension is enabled in `chrome://extensions/`
-- Verify the specific site is enabled in the extension settings
-- Try refreshing the page after enabling the extension
+### 1.1
 
-### Login Button Not Found?
-- The extension targets specific login button selectors
-- If the site layout changes, the extension may need updates
-- Please report issues on GitHub with the specific page URL
+Released May 1, 2026.
 
-## 📝 Privacy & Permissions
+Power-user controls and UI polish:
 
-This extension only requests minimal permissions:
-- **Storage**: To save your settings, the clicks-saved counter, and the local activity log
-- **Notifications**: To show optional confirmation toasts when an auto-click fires
+- Manual pause for the current tab.
+- Timed pause everywhere.
+- Configurable click delay.
+- Per-tab toolbar badge and explanatory tooltip.
+- Dark-mode popup styling.
+- Local clicks-saved counter.
+- Local recent activity log.
+- Moodle content-script match broadened from `/login/*` to `/*` so the popup can control logged-in Moodle tabs.
 
-The extension:
-- ✅ Only runs on `vle.cam.ac.uk` and the Cambridge Panopto domain — never any other site
-- ✅ Does not collect or transmit any personal data
-- ✅ Works entirely locally in your browser; the activity log lives in `chrome.storage.local` and is never synced or sent anywhere
-- ✅ Does not interfere with the actual login process — it only clicks the public "Login" button on the gateway page
+No new API permissions were added.
 
-## 💬 Support
+### 1.0
 
-- 🐛 **Bug Reports**: [Open an issue on GitHub](https://github.com/sileneer/skip-cam-login/issues)
-- 💡 **Feature Requests**: [Suggest improvements on GitHub](https://github.com/sileneer/skip-cam-login/issues)
-- ☕ **Support Development**: [Buy me a coffee](https://buymeacoffee.com/sileneer)
+Released April 28, 2026.
 
-## 📄 License
+Initial Chrome extension release:
 
-This project is open source. See the repository for license details.
+- Moodle and Panopto login-button auto-clicking.
+- Per-site enable toggles.
+- Optional notifications.
+- Logout-aware suppression.
+- Local-first privacy model.
 
-## 📋 Version History
+## License
 
-### Version 1.1 (Current)
-**Release Date**: May 1, 2026
+MIT. See [LICENSE](LICENSE).
 
-**Power-user controls and UX polish on top of v1.0.**
+## Support
 
-**New features:**
-- ✅ **Pause on this tab** — manual single-tab pause, settable from any Moodle or Panopto page (not just the login page)
-- ✅ **Quick timed pause** (15 min / 1 hour / 4 hours) with live countdown and Cancel
-- ✅ **Configurable click delay** — Instant, 0.5 s, 1 s, or 3 s
-- ✅ **Toolbar icon badge** with per-tab state (active / paused / off) and tooltip explaining *why*
-- ✅ **Dark mode popup** auto-following `prefers-color-scheme`
-- ✅ **Lifetime clicks-saved counter** in the popup footer
-- ✅ **Recent activity log** — collapsible, last 50 entries, stored locally; clearable
-
-**Manifest change:** Moodle content-script match broadened from `https://www.vle.cam.ac.uk/login/*` to `https://www.vle.cam.ac.uk/*` to support pausing from logged-in pages. Web Store updates from v1.0 will trigger a one-time "Permissions increase requested" prompt. No new API permissions.
-
-### Version 1.0
-**Release Date**: April 28, 2026
-
-**Initial Chrome Web Store release.**
-
-**Features:**
-- ✅ Automatic login button clicking for Moodle and Panopto
-- ✅ Logout-aware suppression — pauses auto-clicking after sign-out, with configurable scope (sticky across tabs, this tab only, or off)
-- ✅ Per-site toggles for Moodle and Panopto
-- ✅ Desktop notification support
-- ✅ Clean, user-friendly settings interface
-- ✅ Privacy-focused design with minimal permissions
+- Issues and feature requests: https://github.com/sileneer/skip-cam-login/issues
+- Project homepage: https://github.com/sileneer/skip-cam-login
+- Support development: https://buymeacoffee.com/sileneer
