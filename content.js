@@ -159,10 +159,15 @@ async function clearSuppression() {
 }
 
 async function evaluateSuppression(site) {
-    const sync = await chrome.storage.sync.get([site.statusKey, 'logout_scope', 'logout_scope_session']);
+    const sync = await chrome.storage.sync.get([site.statusKey, 'logout_scope', 'logout_scope_session', 'paused_hosts']);
 
     if (sync[site.statusKey] === false) {
         return { allow: false, reason: 'site-disabled' };
+    }
+
+    const pausedHosts = Array.isArray(sync.paused_hosts) ? sync.paused_hosts : [];
+    if (pausedHosts.includes(window.location.host)) {
+        return { allow: false, reason: 'site-paused' };
     }
 
     const session = await chrome.storage.session.get(['pause_until', SESSION_FLAG_KEY]);

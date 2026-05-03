@@ -6,7 +6,7 @@ It does not enter credentials, handle Raven/SAML, read course content, or send d
 
 ## Supported Sites
 
-- Cambridge Moodle / VLE: `https://www.vle.cam.ac.uk/*`
+- Cambridge Moodle: `https://www.vle.cam.ac.uk/*`
 - Cambridge Panopto: `https://cambridgelectures.cloud.panopto.eu/Panopto/*`
 
 The content script is available across those paths so the popup can pause or resume the current tab from logged-in pages. Auto-clicking itself only happens on the configured login pages.
@@ -18,12 +18,14 @@ The content script is available across those paths so the popup can pause or res
 - Optional desktop notification after an auto-click.
 - Configurable click delay: instant, 0.5 seconds, 1 second, or 3 seconds.
 - Pause on the current tab until that tab is closed or resumed.
+- Pause for the whole site via right-click → `Pause Skip Cam Login on this site`. Sticky across tabs and browser restarts.
 - Pause everywhere for 15 minutes, 1 hour, or 4 hours.
 - Logout-aware suppression, so signing out does not immediately send you back through login.
 - Toolbar badge and tooltip showing whether the current tab is active, paused, or disabled.
 - Popup follows the system light/dark theme.
-- Local clicks-saved counter.
+- Local clicks-saved counter with an estimated time-saved figure.
 - Local recent activity log capped at the 50 newest entries.
+- One-time welcome page on first install with quick settings, a recreated Moodle login demo, and onboarding tips.
 
 ## Installation
 
@@ -49,7 +51,7 @@ Open the extension from the Chrome toolbar.
 
 The `Sites` section enables or disables auto-clicking for Moodle and Panopto independently.
 
-The `This tab` section pauses auto-clicking only for the active tab. It works from supported Moodle and Panopto pages, including logged-in pages, because the content script is loaded across the supported site paths.
+The `This tab` section pauses auto-clicking only for the active tab. It works from supported Moodle and Panopto pages, including logged-in pages, because the content script is loaded across the supported site paths. A second row appears here when the current site has been paused via the right-click menu, with a `Resume` button for that host.
 
 The `Behaviour` section controls notifications, click delay, and what happens after logout:
 
@@ -66,12 +68,13 @@ The footer shows the local clicks-saved counter once at least one click has been
 On a supported login page, `content.js` evaluates the current state in this order:
 
 1. Site disabled in settings.
-2. Timed global pause.
-3. Logout suppression for the browser session.
-4. Logout suppression for the current tab.
-5. Manual pause for the current tab.
-6. Configured click delay.
-7. Login button click.
+2. Site paused via right-click menu (sticky per host).
+3. Timed global pause.
+4. Logout suppression for the browser session.
+5. Logout suppression for the current tab.
+6. Manual pause for the current tab.
+7. Configured click delay.
+8. Login button click.
 
 Suppressed attempts and failed button lookups are written to the local activity log. Successful auto-clicks increment the local clicks-saved counter and can trigger a desktop notification.
 
@@ -83,6 +86,8 @@ The extension requests:
 
 - `storage`: settings, session pause flags, local counter, and local activity log.
 - `notifications`: optional desktop notifications after auto-clicking.
+- `contextMenus`: right-click `Pause Skip Cam Login on this site` menu entry, only on the supported Cambridge domains.
+- `activeTab`: lets the popup read the active tab's URL so the `Site paused` row can show the host and resume it.
 
 The extension only runs on the two supported Cambridge domains listed above. It does not collect analytics, store URLs in the activity log, sync the activity log, or transmit personal data.
 
@@ -106,6 +111,8 @@ skip-cam-login/
 |-- background.js
 |-- settings.html
 |-- settings.js
+|-- welcome.html
+|-- welcome.js
 |-- icon.png
 |-- package.ps1
 |-- docs/
@@ -135,6 +142,20 @@ Useful manual checks:
 - `./package.ps1` creates a zip with only runtime files.
 
 ## Version History
+
+### 1.2
+
+Released May 3, 2026.
+
+Per-site pause, time-saved estimate, and a redesigned welcome page:
+
+- Right-click any Moodle or Panopto page to pause auto-click for that whole site. Sticky across tabs and browser restarts via `chrome.storage.sync` (`paused_hosts`).
+- New `Site paused` row in the popup's `This tab` section, with a `Resume` button for the current host.
+- Hero counter in the popup now shows estimated time saved alongside the click count (3-second-per-click constant).
+- Activity log entries are colour-dotted by status (green for clicked, amber for suppressed, red for failed).
+- Popup UI polish: brand mark using `icon.png`, site monogram badges, amber-tinted active pause states, SVG footer icons.
+- New first-install welcome page (`welcome.html`) with a recreated Cambridge Moodle login demo, three quick-settings toggles, onboarding tips, and a privacy summary.
+- New permissions: `contextMenus`, `activeTab`.
 
 ### 1.1
 
