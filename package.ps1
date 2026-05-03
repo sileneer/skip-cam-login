@@ -10,7 +10,9 @@ $include = @(
     'content.js',
     'background.js',
     'settings.html',
-    'settings.js'
+    'settings.js',
+    'welcome.html',
+    'welcome.js'
 )
 
 $missing = $include | Where-Object { -not (Test-Path (Join-Path $root $_)) }
