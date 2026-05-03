@@ -7,20 +7,30 @@
   <style>
     :root {
       --bg: #FFFFFF;
-      --bg-footer: #FAFAFA;
+      --bg-elevated: #FAFAFA;
+      --bg-tint-accent: rgba(16, 185, 129, 0.07);
+      --bg-tint-warn: rgba(245, 158, 11, 0.09);
       --text: #18181B;
-      --text-secondary: #71717A;
+      --text-secondary: #52525B;
       --text-muted: #A1A1AA;
       --text-footer: #52525B;
       --border: #E4E4E7;
       --border-subtle: #F4F4F5;
       --accent: #10B981;
+      --accent-hover: #059669;
       --accent-soft: rgba(16, 185, 129, 0.18);
+      --warn: #F59E0B;
+      --warn-text: #92400E;
+      --warn-soft: rgba(245, 158, 11, 0.20);
+      --danger: #EF4444;
+      --moodle: #1F4E8C;
+      --panopto: #B91C1C;
       --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+      --shadow-mark: 0 2px 6px rgba(16, 185, 129, 0.30);
     }
 
     * { box-sizing: border-box; }
-
     html, body { margin: 0; padding: 0; }
 
     body {
@@ -28,20 +38,63 @@
       background: var(--bg);
       color: var(--text);
       font: 12px/1.5 var(--font);
+      -webkit-font-smoothing: antialiased;
     }
 
     h2 { margin: 0; }
 
+    /* ─── Header ─────────────────────────────────────────── */
     .header {
-      padding: 16px 18px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px 12px;
       border-bottom: 1px solid var(--border);
     }
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      display: block;
+      filter: drop-shadow(0 1px 2px rgba(16, 185, 129, 0.30));
+    }
+    .header-text { min-width: 0; flex: 1; }
     .header h2 {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       letter-spacing: -0.2px;
     }
+    .header .sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
 
+    /* ─── Hero stat ──────────────────────────────────────── */
+    .hero-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      background: var(--bg-tint-accent);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .hero-stat .icon-bolt {
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .hero-stat strong {
+      font-weight: 600;
+      letter-spacing: -0.1px;
+    }
+    .hero-stat .label {
+      color: var(--text-secondary);
+      font-size: 11.5px;
+    }
+
+    /* ─── Groups ─────────────────────────────────────────── */
     .group { padding: 8px 0; }
     .group + .group { border-top: 1px solid var(--border-subtle); }
 
@@ -54,17 +107,22 @@
       color: var(--text-muted);
     }
 
+    /* ─── Row ────────────────────────────────────────────── */
     .row {
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 10px 18px;
+      transition: background 0.18s;
     }
     .row-text { flex: 1; min-width: 0; }
     .row-text .name {
       font-size: 13px;
       font-weight: 500;
       color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 7px;
     }
     .row-text .desc {
       font-size: 11.5px;
@@ -73,6 +131,25 @@
       margin-top: 1px;
     }
 
+    /* ─── Site monogram badges ───────────────────────────── */
+    .site-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #FFFFFF;
+      flex-shrink: 0;
+      box-shadow: var(--shadow-sm);
+    }
+    .site-badge.moodle { background: var(--moodle); }
+    .site-badge.panopto { background: var(--panopto); }
+
+    /* ─── Toggle ─────────────────────────────────────────── */
     .toggle {
       position: relative;
       display: inline-block;
@@ -80,11 +157,7 @@
       height: 20px;
       flex-shrink: 0;
     }
-    .toggle input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
     .toggle .slider {
       position: absolute;
       cursor: pointer;
@@ -111,6 +184,7 @@
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
+    /* ─── Dropdown row ───────────────────────────────────── */
     .row.dropdown {
       flex-direction: column;
       align-items: stretch;
@@ -120,7 +194,7 @@
       appearance: none;
       -webkit-appearance: none;
       width: 100%;
-      background-color: #FAFAFA;
+      background-color: var(--bg-elevated);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 8px 32px 8px 12px;
@@ -131,13 +205,16 @@
       background-repeat: no-repeat;
       background-position: right 10px center;
       cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
+    select:hover { border-color: #D4D4D8; }
     select:focus {
       outline: none;
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
+    /* ─── Buttons ────────────────────────────────────────── */
     .btn-primary, .btn-secondary {
       border: none;
       border-radius: 8px;
@@ -146,25 +223,32 @@
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, transform 0.05s;
       flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
     .btn-primary {
       background: var(--accent);
       color: #FFFFFF;
+      box-shadow: 0 1px 2px rgba(16, 185, 129, 0.25);
     }
-    .btn-primary:hover { filter: brightness(0.95); }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:active { transform: translateY(0.5px); }
     .btn-secondary {
       background: transparent;
       border: 1px solid var(--border);
       color: var(--text);
     }
-    .btn-secondary:hover { background: var(--border-subtle); }
+    .btn-secondary:hover { background: var(--border-subtle); border-color: #D4D4D8; }
+    .btn-secondary:active { transform: translateY(0.5px); }
     .btn-secondary:disabled,
     .btn-primary:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+
     .pause-controls {
       display: flex;
       gap: 8px;
@@ -176,13 +260,59 @@
       font-size: 12px;
     }
 
+    /* ─── Status indicators ──────────────────────────────── */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 6px 1px 5px;
+      border-radius: 8px;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      background: var(--warn-soft);
+      color: var(--warn-text);
+    }
+    .pill .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pill .dot { animation: none; }
+    }
+
+    /* Active states using :has() — Chrome supports this */
+    .row.manual-pause:has(button[data-paused="1"]) {
+      background: var(--bg-tint-warn);
+    }
+    .row.manual-pause .pill { display: none; }
+    .row.manual-pause:has(button[data-paused="1"]) .pill {
+      display: inline-flex;
+    }
+
+    .row.timed-pause-active,
+    .row.site-pause-active {
+      background: var(--bg-tint-warn);
+    }
+
+    /* ─── Footer ─────────────────────────────────────────── */
     .footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 18px;
+      padding: 11px 18px;
       border-top: 1px solid var(--border);
-      background: var(--bg-footer);
+      background: var(--bg-elevated);
       font-size: 11.5px;
     }
     .footer a {
@@ -190,32 +320,35 @@
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       transition: color 0.15s;
+      cursor: pointer;
     }
     .footer a:hover { color: var(--text); }
+    .footer .icon { flex-shrink: 0; }
 
-    .counter-row {
-      padding: 8px 18px;
-      border-top: 1px solid var(--border);
-      font-size: 11px;
-      color: var(--text-muted);
-      text-align: center;
-    }
-
+    /* ─── Activity log ───────────────────────────────────── */
     .log-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       cursor: pointer;
       user-select: none;
+      transition: color 0.15s;
     }
     .log-header:hover { color: var(--text-secondary); }
+    .log-header:focus-visible {
+      outline: 2px solid var(--accent-soft);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
     .chevron {
-      transition: transform 0.15s;
+      transition: transform 0.18s;
       font-size: 11px;
+      display: inline-block;
     }
     .chevron.open { transform: rotate(180deg); }
+
     .log-body { padding: 0 18px 8px; }
     .log-entry {
       display: flex;
@@ -224,10 +357,24 @@
       padding: 4px 0;
       font-size: 11.5px;
     }
+    .log-entry .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+      align-self: center;
+      transform: translateY(-1px);
+    }
+    .log-entry.clicked .status-dot { background: var(--accent); }
+    .log-entry.suppressed .status-dot { background: var(--warn); }
+    .log-entry.failed .status-dot { background: var(--danger); }
+
     .log-entry .ts {
       color: var(--text-muted);
       flex-shrink: 0;
-      min-width: 56px;
+      min-width: 50px;
+      font-variant-numeric: tabular-nums;
     }
     .log-entry .body {
       color: var(--text-secondary);
@@ -235,7 +382,7 @@
       min-width: 0;
     }
     .log-empty {
-      padding: 8px 0;
+      padding: 10px 0;
       text-align: center;
       color: var(--text-muted);
       font-size: 11.5px;
@@ -250,19 +397,18 @@
       text-align: right;
       background: none;
       border: none;
-      padding: 0;
+      padding: 2px 0;
+      transition: color 0.15s;
     }
     .log-clear:hover { color: var(--text-secondary); }
-    .log-header:focus-visible {
-      outline: 2px solid var(--accent-soft);
-      outline-offset: 2px;
-      border-radius: 4px;
-    }
 
+    /* ─── Dark mode ──────────────────────────────────────── */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #18181B;
-        --bg-footer: #09090B;
+        --bg-elevated: #27272A;
+        --bg-tint-accent: rgba(16, 185, 129, 0.10);
+        --bg-tint-warn: rgba(245, 158, 11, 0.13);
         --text: #FAFAFA;
         --text-secondary: #D4D4D8;
         --text-muted: #A1A1AA;
@@ -270,26 +416,49 @@
         --border: #27272A;
         --border-subtle: #1F1F23;
         --accent: #10B981;
+        --accent-hover: #34D399;
         --accent-soft: rgba(16, 185, 129, 0.25);
+        --warn: #F59E0B;
+        --warn-text: #FCD34D;
+        --warn-soft: rgba(245, 158, 11, 0.18);
+        --moodle: #3B82F6;
+        --panopto: #EF4444;
       }
-      select { background-color: #27272A; }
       .toggle .slider { background: #3F3F46; }
-      .btn-secondary { color: var(--text); border-color: var(--border); }
-      .btn-secondary:hover { background: var(--border); }
+      .btn-secondary { color: var(--text); border-color: #3F3F46; }
+      .btn-secondary:hover { background: #27272A; border-color: #52525B; }
+      select:hover { border-color: #52525B; }
     }
   </style>
 </head>
 <body>
+
+  <!-- ─── Header ───────────────────────────────────────── -->
   <div class="header">
-    <h2>Login Skip Settings</h2>
+    <img class="brand-mark" src="icon.png" alt="" aria-hidden="true">
+
+    <div class="header-text">
+      <h2>Skip Cam Login</h2>
+      <div class="sub">Cambridge Moodle &amp; Panopto</div>
+    </div>
   </div>
 
+  <!-- ─── Hero stat (click counter) ────────────────────── -->
+  <div class="hero-stat" id="counter-row" style="display: none;" title="Total auto-clicks since installing">
+    <svg class="icon-bolt" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M13 2L4.09 12.97a1 1 0 0 0 .77 1.65H10v6.5a1 1 0 0 0 1.78.62L19.91 11.03a1 1 0 0 0-.77-1.65H14V3a1 1 0 0 0-1-1z"/>
+    </svg>
+    <span id="counter-text"></span>
+  </div>
+
+  <!-- ─── Sites ────────────────────────────────────────── -->
   <div class="group">
     <div class="group-label">Sites</div>
     <div class="row">
+      <div class="site-badge moodle" aria-hidden="true">M</div>
       <div class="row-text">
         <div class="name">Moodle</div>
-        <div class="desc">Auto-click the login button on Cambridge VLE</div>
+        <div class="desc">Auto-click the login button on Cambridge Moodle</div>
       </div>
       <label class="toggle">
         <input type="checkbox" id="moodle-toggle">
@@ -297,6 +466,7 @@
       </label>
     </div>
     <div class="row">
+      <div class="site-badge panopto" aria-hidden="true">P</div>
       <div class="row-text">
         <div class="name">Panopto</div>
         <div class="desc">Auto-click the login button on Panopto</div>
@@ -308,17 +478,32 @@
     </div>
   </div>
 
+  <!-- ─── This tab ─────────────────────────────────────── -->
   <div class="group">
     <div class="group-label">This tab</div>
-    <div class="row">
+    <div class="row manual-pause">
       <div class="row-text">
-        <div class="name" id="manual-pause-label">Pause on this tab</div>
+        <div class="name">
+          <span id="manual-pause-label">Pause on this tab</span>
+          <span class="pill" aria-hidden="true"><span class="dot"></span>Paused</span>
+        </div>
         <div class="desc" id="manual-pause-desc">Stop auto-click here until you close the tab</div>
       </div>
       <button id="manual-pause-btn" class="btn-secondary">Pause</button>
     </div>
+    <div class="row site-pause-active" id="site-pause-row" style="display: none;">
+      <div class="row-text">
+        <div class="name">
+          <span class="pill" aria-hidden="true"><span class="dot"></span>Paused</span>
+          <span>Site paused</span>
+        </div>
+        <div class="desc">Sticky across tabs on <span id="site-pause-host">…</span></div>
+      </div>
+      <button id="site-pause-btn" class="btn-secondary">Resume</button>
+    </div>
   </div>
 
+  <!-- ─── Behaviour ────────────────────────────────────── -->
   <div class="group">
     <div class="group-label">Behaviour</div>
     <div class="row">
@@ -356,11 +541,15 @@
     </div>
   </div>
 
+  <!-- ─── Quick actions ────────────────────────────────── -->
   <div class="group">
     <div class="group-label">Quick actions</div>
-    <div class="row" id="timed-pause-active" style="display: none;">
+    <div class="row timed-pause-active" id="timed-pause-active" style="display: none;">
       <div class="row-text">
-        <div class="name">Paused for <span id="pause-remaining">…</span></div>
+        <div class="name">
+          <span class="pill" aria-hidden="true"><span class="dot"></span>Active</span>
+          <span>Paused for <span id="pause-remaining">…</span></span>
+        </div>
         <div class="desc">Auto-click is suspended on every site</div>
       </div>
       <button id="cancel-pause-btn" class="btn-secondary">Cancel</button>
@@ -381,6 +570,7 @@
     </div>
   </div>
 
+  <!-- ─── Activity log ─────────────────────────────────── -->
   <div class="group log-group">
     <div class="group-label log-header" id="log-header" tabindex="0" role="button" aria-expanded="false">
       <span>Recent activity</span>
@@ -392,15 +582,24 @@
     </div>
   </div>
 
-  <div class="counter-row" id="counter-row" style="display: none;" title="Total auto-clicks since installing">
-    <span id="counter-text"></span>
-  </div>
+  <!-- ─── Footer ───────────────────────────────────────── -->
   <div class="footer">
-    <a href="https://buymeacoffee.com/sileneer" target="_blank" rel="noopener">
-      <span>☕</span><span>Buy me a coffee</span>
+    <a href="https://buymeacoffee.com/sileneer" target="_blank" rel="noopener" aria-label="Buy me a coffee">
+      <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17 8h1a4 4 0 0 1 0 8h-1"/>
+        <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z"/>
+        <line x1="6" y1="2" x2="6" y2="4"/>
+        <line x1="10" y1="2" x2="10" y2="4"/>
+        <line x1="14" y1="2" x2="14" y2="4"/>
+      </svg>
+      <span>Buy me a coffee</span>
     </a>
-    <a href="https://github.com/sileneer/skip-cam-login" target="_blank" rel="noopener">
-      <span>GitHub</span><span>↗</span>
+    <a href="https://github.com/sileneer/skip-cam-login" target="_blank" rel="noopener" aria-label="View on GitHub">
+      <span>GitHub</span>
+      <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M7 17L17 7"/>
+        <polyline points="7 7 17 7 17 17"/>
+      </svg>
     </a>
   </div>
 
