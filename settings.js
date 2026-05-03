@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualPauseBtn = document.getElementById('manual-pause-btn');
     const manualPauseLabel = document.getElementById('manual-pause-label');
     const manualPauseDesc = document.getElementById('manual-pause-desc');
+    const sitePauseRow = document.getElementById('site-pause-row');
+    const sitePauseHost = document.getElementById('site-pause-host');
+    const sitePauseBtn = document.getElementById('site-pause-btn');
     const counterRow = document.getElementById('counter-row');
     const counterText = document.getElementById('counter-text');
     const logHeader = document.getElementById('log-header');
@@ -204,17 +207,62 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await refreshManualPauseUi();
 
+    async function refreshSitePauseUi() {
+        const tab = await getActiveTab();
+        const host = tab?.url ? safeHost(tab.url) : null;
+        if (!host) {
+            sitePauseRow.style.display = 'none';
+            return;
+        }
+        const { paused_hosts = [] } = await chrome.storage.sync.get('paused_hosts');
+        if (Array.isArray(paused_hosts) && paused_hosts.includes(host)) {
+            sitePauseHost.textContent = host;
+            sitePauseRow.style.display = '';
+        } else {
+            sitePauseRow.style.display = 'none';
+        }
+    }
+
+    function safeHost(url) {
+        try { return new URL(url).host; } catch (err) { return null; }
+    }
+
+    sitePauseBtn.addEventListener('click', async () => {
+        const tab = await getActiveTab();
+        const host = tab?.url ? safeHost(tab.url) : null;
+        if (!host) return;
+        const { paused_hosts = [] } = await chrome.storage.sync.get('paused_hosts');
+        const next = (Array.isArray(paused_hosts) ? paused_hosts : []).filter((h) => h !== host);
+        await chrome.storage.sync.set({ paused_hosts: next });
+        await refreshSitePauseUi();
+    });
+
+    await refreshSitePauseUi();
+
+    const SECONDS_PER_CLICK = 3;
+
+    function formatClickSavings(count) {
+        const clicks = count === 1 ? '1 click' : `${count.toLocaleString('en-US')} clicks`;
+        const totalSeconds = count * SECONDS_PER_CLICK;
+        if (totalSeconds < 60) return `${clicks} saved`;
+        const totalMinutes = Math.round(totalSeconds / 60);
+        if (totalMinutes < 60) return `${clicks} · ~${totalMinutes} min saved`;
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+        const span = mins === 0 ? `~${hours}h` : `~${hours}h ${mins}m`;
+        return `${clicks} · ${span} saved`;
+    }
+
     const local = await chrome.storage.local.get('clicks_saved');
     const count = local.clicks_saved || 0;
     if (count > 0) {
-        counterText.textContent = count === 1
-            ? '1 click saved'
-            : `${count.toLocaleString('en-US')} clicks saved`;
+        counterText.textContent = formatClickSavings(count);
         counterRow.style.display = '';
     }
 
     const SUPPRESSION_LABELS = {
         'site-disabled': 'Suppressed (site disabled)',
+        'site-paused': 'Suppressed (paused on this site)',
         'timed-pause': 'Suppressed (timed pause)',
         'logout-session': 'Suppressed (after sign-out, all tabs)',
         'logout-tab': 'Suppressed (after sign-out, this tab)',
@@ -243,13 +291,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderLogEntry(entry) {
         const row = document.createElement('div');
-        row.className = 'log-entry';
+        const action = entry.action === 'clicked' || entry.action === 'suppressed' || entry.action === 'failed'
+            ? entry.action
+            : '';
+        row.className = action ? `log-entry ${action}` : 'log-entry';
+        const dot = document.createElement('span');
+        dot.className = 'status-dot';
         const ts = document.createElement('span');
         ts.className = 'ts';
         ts.textContent = relativeTime(entry.ts);
         const body = document.createElement('span');
         body.className = 'body';
         body.textContent = `${entry.site || '—'} · ${actionLabel(entry)}`;
+        row.appendChild(dot);
         row.appendChild(ts);
         row.appendChild(body);
         return row;

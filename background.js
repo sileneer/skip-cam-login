@@ -5,6 +5,13 @@ chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONT
 
 const tabStates = new Map();
 
+const CONTEXT_MENU_ID = 'skip-cam-login-pause-site';
+const PAUSED_HOSTS_KEY = 'paused_hosts';
+const SUPPORTED_HOST_PATTERNS = [
+    'https://www.vle.cam.ac.uk/*',
+    'https://cambridgelectures.cloud.panopto.eu/Panopto/*',
+];
+
 const BADGE_BY_STATE = {
     active: { text: '', color: '#10B981' },
     pause:  { text: 'II', color: '#F59E0B' },
@@ -32,6 +39,7 @@ function tooltipFor(state, reason, clickDelayMs, expiresAt) {
             'logout-session': 'Paused after sign-out (all tabs).',
             'logout-tab': 'Paused after sign-out (this tab).',
             'manual-tab': 'Paused on this tab.',
+            'site-paused': 'Paused on this site (right-click to resume).',
         };
         return base + ' — ' + (reasons[reason] || 'Paused.');
     }
@@ -96,7 +104,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
 });
 
-const WATCHED_SYNC_KEYS = ['moodle_status', 'panopto_status', 'logout_scope', 'logout_scope_session', 'click_delay_ms'];
+const WATCHED_SYNC_KEYS = ['moodle_status', 'panopto_status', 'logout_scope', 'logout_scope_session', 'click_delay_ms', PAUSED_HOSTS_KEY];
 const WATCHED_SESSION_KEYS = ['suppress_auto_login', 'pause_until'];
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -105,6 +113,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
         (area === 'session' && WATCHED_SESSION_KEYS.some((k) => k in changes));
     if (!triggered) return;
     requestReevaluateAll();
+    if (area === 'sync' && PAUSED_HOSTS_KEY in changes) {
+        refreshContextMenuForActiveTab();
+    }
 });
 
 async function requestReevaluateAll() {
@@ -154,3 +165,103 @@ async function appendLogEntry(partial) {
     }
     await chrome.storage.local.set({ activity_log });
 }
+
+// ─── Context menu: pause/resume on this site ────────────────────────────────
+
+async function ensureContextMenu() {
+    try {
+        await chrome.contextMenus.removeAll();
+        chrome.contextMenus.create({
+            id: CONTEXT_MENU_ID,
+            title: 'Pause Skip Cam Login on this site',
+            contexts: ['all'],
+            documentUrlPatterns: SUPPORTED_HOST_PATTERNS,
+        });
+    } catch (err) {
+        console.warn('background: ensureContextMenu failed', err);
+    }
+}
+
+function hostFromUrl(url) {
+    if (!url) return null;
+    try { return new URL(url).host; } catch (err) { return null; }
+}
+
+async function getPausedHosts() {
+    const { [PAUSED_HOSTS_KEY]: paused = [] } = await chrome.storage.sync.get(PAUSED_HOSTS_KEY);
+    return Array.isArray(paused) ? paused : [];
+}
+
+async function updateContextMenuLabel(host) {
+    if (!host) return;
+    const paused = await getPausedHosts();
+    const isPaused = paused.includes(host);
+    try {
+        await chrome.contextMenus.update(CONTEXT_MENU_ID, {
+            title: isPaused
+                ? 'Resume Skip Cam Login on this site'
+                : 'Pause Skip Cam Login on this site',
+        });
+    } catch (err) {
+        // Menu may not exist yet on first install; ignore.
+    }
+}
+
+async function refreshContextMenuForActiveTab() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.url) {
+            const host = hostFromUrl(tab.url);
+            if (host) await updateContextMenuLabel(host);
+        }
+    } catch (err) {
+        // ignore
+    }
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId !== CONTEXT_MENU_ID) return;
+    const host = hostFromUrl(info.pageUrl) || hostFromUrl(tab && tab.url);
+    if (!host) return;
+    const paused = await getPausedHosts();
+    const set = new Set(paused);
+    if (set.has(host)) set.delete(host);
+    else set.add(host);
+    await chrome.storage.sync.set({ [PAUSED_HOSTS_KEY]: [...set] });
+    await updateContextMenuLabel(host);
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        const host = hostFromUrl(tab && tab.url);
+        if (host) await updateContextMenuLabel(host);
+    } catch (err) {
+        // ignore
+    }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (!changeInfo.url && changeInfo.status !== 'complete') return;
+    if (!tab || !tab.active) return;
+    const host = hostFromUrl(tab.url);
+    if (host) await updateContextMenuLabel(host);
+});
+
+// ─── First-install welcome ──────────────────────────────────────────────────
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+    await ensureContextMenu();
+    await refreshContextMenuForActiveTab();
+    if (details.reason === 'install') {
+        try {
+            await chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+        } catch (err) {
+            console.warn('background: failed to open welcome page', err);
+        }
+    }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    ensureContextMenu().then(refreshContextMenuForActiveTab);
+});
