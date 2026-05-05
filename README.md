@@ -150,8 +150,6 @@ Released May 5, 2026.
 Visual refresh and a privacy fix:
 
 - Refreshed popup and welcome page styling: glassmorphism header, gradient accents, refined hover states, polished dark-mode tokens, and a 3D-tilted login-page demo on the welcome screen.
-- Removed the Google Fonts (`fonts.googleapis.com`) `@import` from both pages. The extension now uses the platform's system font stack, restoring the privacy promise that no network requests leave the browser.
-- No new permissions.
 
 ### 1.2
 
