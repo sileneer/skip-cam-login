@@ -23,5 +23,13 @@ build/
 node_modules/
 
 # Brainstorming / scratch
-.superpowers/
 /docs
+
+# AI / LLM tooling
+.workbuddy/
+.claude/
+.agents/
+.superpowers/
+CLAUDE.md
+AGENTS.md
+ChatGPT Image*
