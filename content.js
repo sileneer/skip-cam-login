@@ -1,297 +1,407 @@
 'use strict';
 
-const SITES = [
-    {
-        name: 'Moodle',
-        isLogin: (url) =>
-            url.startsWith('https://www.vle.cam.ac.uk/login') &&
-            !url.startsWith('https://www.vle.cam.ac.uk/login/logout.php'),
-        isLogout: (url) => url.startsWith('https://www.vle.cam.ac.uk/login/logout.php'),
-        isAuthenticatedPage: () => false,
-        loginButtonSelector: 'a.btn.btn-secondary',
-        logoutButtonSelector: null,
-        statusKey: 'moodle_status',
-    },
-    {
-        name: 'Panopto',
-        isLogin: (url) => url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/Login.aspx'),
-        isLogout: () => false,
-        isAuthenticatedPage: (url) =>
-            url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/') &&
-            !url.startsWith('https://cambridgelectures.cloud.panopto.eu/Panopto/Pages/Auth/'),
-        loginButtonSelector: '#PageContentPlaceholder_loginControl_externalLoginButton',
-        logoutButtonSelector: 'a.logout-button, a[id$="_Logout"], a[href*="__doPostBack"][href*="Logout"]',
-        statusKey: 'panopto_status',
-    },
-];
+const SC = globalThis.SkipCam;
+const { SYNC_KEYS, SESSION_KEYS, TAB_KEYS, REASONS } = SC;
 
 const OBSERVER_TIMEOUT_MS = 10000;
-const SESSION_FLAG_KEY = 'suppress_auto_login';
-const TAB_FLAG_KEY = 'skipcam_suppress_auto_login';
-const MANUAL_PAUSE_KEY = 'skipcam_manual_pause';
+const SESSION_RETRY_MS = 300;
+const MAX_TIMER_MS = 2 ** 31 - 1;
+const CLEARABLE_BY_CLICK = new Set(['logout-tab', 'logout-session', 'manual-tab', 'loop-guard']);
 
-(async () => {
-    try {
-        const url = window.location.href;
-        const site = SITES.find((s) =>
-            s.isLogin(url) || s.isLogout(url) || s.isAuthenticatedPage(url));
-        if (!site) return;
+let outcome = null;          // failure reason from this page load's click attempt
+let attempted = false;       // an auto-click started on this page load
+let clickInFlight = false;
+let expiryTimer = null;
+let clearListenerAttached = false;
 
-        if (site.isLogout(url)) {
-            markLoggedOut();
-            console.log(`Auto Clicker: detected ${site.name} logout URL, suppression armed`);
-            return;
-        }
+chrome.runtime.onMessage.addListener(onMessage);
+start().catch((err) => console.warn('Skip Cam Login: error', err));
 
-        if (site.isAuthenticatedPage(url)) {
-            notifyState('none', 'authenticated');
-            installLogoutInterceptor(site);
-            return;
-        }
+function currentPage() {
+    return SC.classifyUrl(window.location.href);
+}
 
-        // Login page from here on.
-        if (document.referrer && SITES.some((s) => s.isLogout(document.referrer))) {
-            markLoggedOut();
-        }
+async function start() {
+    const page = currentPage();
+    if (page.kind === 'off-domain') return;
 
-        const evaluation = await evaluateSuppression(site);
-        if (!evaluation.allow) {
-            console.log(`Auto Clicker: ${site.name} suppressed (${evaluation.reason})`);
-            const state = evaluation.reason === 'site-disabled' ? 'off' : 'pause';
-            notifyState(state, evaluation.reason);
-            chrome.runtime.sendMessage({
-                type: 'append_log',
-                entry: { site: site.name, action: 'suppressed', reason: evaluation.reason },
-            }).catch(() => {});
-            if (shouldAttachClearOnClick(evaluation.reason)) {
-                attachClearOnClick(site);
-            }
-            return;
-        }
-
-        notifyState('active', 'allowed');
-
-        if (document.visibilityState === 'visible') {
-            runAutoClick(site);
-        } else {
-            document.addEventListener('visibilitychange', function onVisible() {
-                if (document.visibilityState !== 'visible') return;
-                document.removeEventListener('visibilitychange', onVisible);
-                runAutoClick(site);
-            });
-        }
-    } catch (err) {
-        console.warn('Auto Clicker: error', err);
+    if (page.kind === 'logout') {
+        await markLoggedOut();
+        console.log(`Skip Cam Login: ${page.site.name} sign-out page, auto-click paused`);
+        notifyState(page, 'none', 'none');
+        return;
     }
-})();
 
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-    if (request?.type === 'reevaluate') {
-        reevaluateNow().finally(() => sendResponse({}));
-        return true;
+    if (page.kind === 'site') {
+        installLogoutInterceptor(page.site);
+        await reevaluateNow();
+        return;
     }
-    if (request?.type === 'get_manual_pause_state') {
-        let paused = false;
-        try { paused = sessionStorage.getItem(MANUAL_PAUSE_KEY) === '1'; } catch (err) {}
-        sendResponse({ paused });
-        return false;
+
+    if (document.referrer && SC.classifyUrl(document.referrer).kind === 'logout') {
+        await markLoggedOut();
     }
-    if (request?.type === 'set_manual_pause') {
+
+    const decision = await evaluate(page);
+    if (!decision.allow) {
+        handleDenied(page, decision);
+        return;
+    }
+    report(page, decision);
+    whenVisible(() => runAutoClick(page.site));
+}
+
+// ─── Evaluation ─────────────────────────────────────────────────────────────
+
+async function readSession(keys) {
+    for (let attempt = 0; attempt < 2; attempt++) {
         try {
-            if (request.value) sessionStorage.setItem(MANUAL_PAUSE_KEY, '1');
-            else sessionStorage.removeItem(MANUAL_PAUSE_KEY);
-        } catch (err) {}
-        reevaluateNow().finally(() => sendResponse({}));
-        return true;
+            return await chrome.storage.session.get(keys);
+        } catch (err) {
+            console.warn('Skip Cam Login: could not read session storage', err);
+            if (attempt === 0) await sleep(SESSION_RETRY_MS);
+        }
     }
-    return false;
-});
+    return null;
+}
+
+async function evaluate(page) {
+    let sync;
+    try {
+        sync = await chrome.storage.sync.get([
+            page.site.statusKey,
+            SYNC_KEYS.LOGOUT_SCOPE,
+            SYNC_KEYS.LEGACY_LOGOUT_SCOPE_SESSION,
+        ]);
+    } catch (err) {
+        console.warn('Skip Cam Login: could not read settings', err);
+        return { allow: false, reason: 'state-unavailable', pauseUntil: null };
+    }
+
+    const session = await readSession([SESSION_KEYS.PAUSE_UNTIL, SESSION_KEYS.SUPPRESS_AUTO_LOGIN]);
+    const now = Date.now();
+    const pauseUntil = session ? session[SESSION_KEYS.PAUSE_UNTIL] : undefined;
+    if (pauseUntil && pauseUntil <= now) {
+        chrome.storage.session.remove(SESSION_KEYS.PAUSE_UNTIL).catch(() => {});
+    }
+
+    const decision = SC.decideSuppression({
+        siteEnabled: sync[page.site.statusKey] !== false,
+        sessionUnavailable: session === null,
+        pauseUntil,
+        now,
+        logoutScope: SC.normalizeLogoutScope(sync),
+        sessionLogoutFlag: session ? session[SESSION_KEYS.SUPPRESS_AUTO_LOGIN] === true : false,
+        tabLogoutFlag: tabFlagGet(TAB_KEYS.LOGOUT_FLAG),
+        tabManualPause: tabFlagGet(TAB_KEYS.MANUAL_PAUSE),
+        // The loop guard only matters where a click would happen.
+        recentAutoClicks: page.kind === 'login' ? readClickHistory() : [],
+    });
+    return { ...decision, pauseUntil: pauseUntil || null };
+}
+
+function effectiveReason(decision) {
+    return decision.allow && outcome ? outcome : decision.reason;
+}
+
+function report(page, decision) {
+    const reason = effectiveReason(decision);
+    const state = reason === 'allowed' ? 'active' : REASONS[reason].badge;
+    notifyState(page, state, reason);
+}
+
+function handleDenied(page, decision) {
+    console.log(`Skip Cam Login: ${page.site.name} skipped (${decision.reason})`);
+    report(page, decision);
+    sendLog({ action: 'suppressed', reason: decision.reason });
+    if (page.kind === 'login' && CLEARABLE_BY_CLICK.has(decision.reason)) attachClearOnClick(page.site);
+    scheduleExpiryRecheck(decision);
+}
 
 async function reevaluateNow() {
-    const url = window.location.href;
-    const site = SITES.find((s) =>
-        s.isLogin(url) || s.isLogout(url) || s.isAuthenticatedPage(url));
-    if (!site) {
-        notifyState('none', 'off-domain');
-        return;
+    const page = currentPage();
+    if (page.kind === 'off-domain' || page.kind === 'logout') {
+        notifyState(page, 'none', 'none');
+        return null;
     }
-    if (site.isLogout(url)) {
-        notifyState('none', 'logout-page');
-        return;
+    const decision = await evaluate(page);
+    report(page, decision);
+    scheduleExpiryRecheck(decision);
+    if (page.kind === 'login' && !decision.allow && CLEARABLE_BY_CLICK.has(decision.reason)) {
+        attachClearOnClick(page.site);
     }
-    if (site.isAuthenticatedPage(url)) {
-        notifyState('none', 'authenticated');
-        return;
-    }
-    const evaluation = await evaluateSuppression(site);
-    if (!evaluation.allow) {
-        const state = evaluation.reason === 'site-disabled' ? 'off' : 'pause';
-        notifyState(state, evaluation.reason);
-    } else {
-        notifyState('active', 'allowed');
-    }
+    return decision;
 }
 
-function markLoggedOut() {
-    try { sessionStorage.setItem(TAB_FLAG_KEY, '1'); } catch (err) {}
-    setSessionFlagIfEnabled();
+// A timed pause ends without any storage event, so re-check when it expires.
+// Expiry only refreshes the badge; it never clicks.
+function scheduleExpiryRecheck(decision) {
+    clearTimeout(expiryTimer);
+    expiryTimer = null;
+    if (decision.reason !== 'timed-pause' || !decision.pauseUntil) return;
+    if (decision.pauseUntil === SC.PAUSE_UNTIL_RESTART) return;
+    const wait = Math.min(decision.pauseUntil - Date.now() + 1000, MAX_TIMER_MS);
+    expiryTimer = setTimeout(() => {
+        reevaluateNow().catch((err) => console.warn('Skip Cam Login: re-check failed', err));
+    }, Math.max(wait, 0));
 }
 
-async function setSessionFlagIfEnabled() {
+function notifyState(page, state, reason) {
+    const kind = page.kind === 'off-domain' ? undefined : page.kind;
+    chrome.runtime.sendMessage({ type: 'state_update', state, reason, kind })
+        .catch(() => { /* service worker not ready; ignore */ });
+}
+
+function sendLog(entry) {
+    chrome.runtime.sendMessage({ type: 'append_log', entry }).catch(() => {});
+}
+
+// ─── Per-tab flags (sessionStorage: this tab, this origin) ──────────────────
+
+function tabFlagGet(key) {
+    try { return sessionStorage.getItem(key) === '1'; } catch (err) { return false; }
+}
+
+function tabFlagSet(key) {
+    try { sessionStorage.setItem(key, '1'); } catch (err) {}
+}
+
+function tabFlagClear(key) {
+    try { sessionStorage.removeItem(key); } catch (err) {}
+}
+
+function readClickHistory() {
     try {
-        const sync = await chrome.storage.sync.get(['logout_scope', 'logout_scope_session']);
-        const scope = normalizeLogoutScope(sync);
-        if (scope === 'off') return;
-        await chrome.storage.session.set({ [SESSION_FLAG_KEY]: true });
+        const parsed = JSON.parse(sessionStorage.getItem(TAB_KEYS.CLICK_HISTORY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
     } catch (err) {
-        console.warn('Auto Clicker: failed to set session flag', err);
+        return [];
     }
 }
 
+function recordClick() {
+    const now = Date.now();
+    const history = SC.recentClicks(readClickHistory(), now);
+    history.push(now);
+    try { sessionStorage.setItem(TAB_KEYS.CLICK_HISTORY, JSON.stringify(history)); } catch (err) {}
+}
+
+async function markLoggedOut() {
+    tabFlagSet(TAB_KEYS.LOGOUT_FLAG);
+    try {
+        const sync = await chrome.storage.sync.get([
+            SYNC_KEYS.LOGOUT_SCOPE,
+            SYNC_KEYS.LEGACY_LOGOUT_SCOPE_SESSION,
+        ]);
+        if (SC.normalizeLogoutScope(sync) === 'off') return;
+        await chrome.storage.session.set({ [SESSION_KEYS.SUPPRESS_AUTO_LOGIN]: true });
+    } catch (err) {
+        console.warn('Skip Cam Login: could not record sign-out', err);
+    }
+}
+
+// Same effect as clicking the login button yourself.
 async function clearSuppression() {
-    try { sessionStorage.removeItem(TAB_FLAG_KEY); } catch (err) {}
-    try { sessionStorage.removeItem(MANUAL_PAUSE_KEY); } catch (err) {}
+    tabFlagClear(TAB_KEYS.LOGOUT_FLAG);
+    tabFlagClear(TAB_KEYS.MANUAL_PAUSE);
+    tabFlagClear(TAB_KEYS.CLICK_HISTORY);
+    outcome = null;
     try {
-        await chrome.storage.session.remove(SESSION_FLAG_KEY);
+        await chrome.storage.session.remove(SESSION_KEYS.SUPPRESS_AUTO_LOGIN);
     } catch (err) {
-        console.warn('Auto Clicker: failed to clear session flag', err);
+        console.warn('Skip Cam Login: could not clear sign-out pause', err);
     }
 }
 
-async function evaluateSuppression(site) {
-    const sync = await chrome.storage.sync.get([site.statusKey, 'logout_scope', 'logout_scope_session', 'paused_hosts']);
+// ─── Clicking ───────────────────────────────────────────────────────────────
 
-    if (sync[site.statusKey] === false) {
-        return { allow: false, reason: 'site-disabled' };
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function whenVisible(fn) {
+    if (document.visibilityState === 'visible') {
+        fn();
+        return;
     }
+    document.addEventListener('visibilitychange', function onVisible() {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', onVisible);
+        fn();
+    });
+}
 
-    const pausedHosts = Array.isArray(sync.paused_hosts) ? sync.paused_hosts : [];
-    if (pausedHosts.includes(window.location.host)) {
-        return { allow: false, reason: 'site-paused' };
+async function readClickDelay() {
+    try {
+        const { [SYNC_KEYS.CLICK_DELAY_MS]: ms } = await chrome.storage.sync.get(SYNC_KEYS.CLICK_DELAY_MS);
+        return Number.isFinite(ms) && ms > 0 ? ms : 0;
+    } catch (err) {
+        return 0;
     }
+}
 
-    const session = await chrome.storage.session.get(['pause_until', SESSION_FLAG_KEY]);
-    if (session.pause_until) {
-        if (session.pause_until > Date.now()) {
-            return { allow: false, reason: 'timed-pause' };
+function describeTarget(el) {
+    const tag = el.tagName;
+    let formAction = '';
+    if (tag !== 'A' && el.form) {
+        formAction = el.hasAttribute('formaction') ? el.formAction : el.form.action;
+    }
+    return { tagName: tag, href: tag === 'A' ? el.href : '', type: el.type || '', formAction };
+}
+
+function distinctDestinations(elements) {
+    return new Set(elements.map((el) => SC.targetDestination(describeTarget(el)))).size;
+}
+
+function findTarget(site) {
+    const matches = [...document.querySelectorAll(site.target.selector)];
+    if (matches.length === 0) return { ok: false, reason: 'button-not-found' };
+    const safe = matches.filter((el) =>
+        SC.isSafeLoginTarget(describeTarget(el), site.target, window.location.origin));
+    if (safe.length === 0) return { ok: false, reason: 'unsafe-target' };
+    let pool = safe;
+    if (distinctDestinations(pool) > 1) pool = pool.filter((el) => el.getClientRects().length > 0);
+    if (pool.length === 0 || distinctDestinations(pool) > 1) return { ok: false, reason: 'ambiguous-target' };
+    return { ok: true, el: pool[0] };
+}
+
+function waitForTarget(site) {
+    return new Promise((resolve) => {
+        let last = findTarget(site);
+        if (last.ok) {
+            resolve(last);
+            return;
         }
-        chrome.storage.session.remove('pause_until').catch(() => {});
-    }
-
-    const scope = normalizeLogoutScope(sync);
-
-    if (scope === 'session' && session[SESSION_FLAG_KEY] === true) {
-        return { allow: false, reason: 'logout-session' };
-    }
-
-    let logoutTabFlag = false;
-    try { logoutTabFlag = sessionStorage.getItem(TAB_FLAG_KEY) === '1'; } catch (err) {}
-    if (scope !== 'off' && logoutTabFlag) {
-        return { allow: false, reason: 'logout-tab' };
-    }
-
-    let manualPause = false;
-    try { manualPause = sessionStorage.getItem(MANUAL_PAUSE_KEY) === '1'; } catch (err) {}
-    if (manualPause) {
-        return { allow: false, reason: 'manual-tab' };
-    }
-
-    return { allow: true, reason: 'allowed' };
+        const observer = new MutationObserver(() => {
+            last = findTarget(site);
+            if (last.ok) finish();
+        });
+        const timer = setTimeout(finish, OBSERVER_TIMEOUT_MS);
+        function finish() {
+            observer.disconnect();
+            clearTimeout(timer);
+            resolve(last);
+        }
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['href', 'class', 'id'],
+        });
+    });
 }
 
-function normalizeLogoutScope({ logout_scope, logout_scope_session }) {
-    if (logout_scope === 'session' || logout_scope === 'tab' || logout_scope === 'off') {
-        return logout_scope;
-    }
-    return logout_scope_session === false ? 'tab' : 'session';
-}
+async function runAutoClick(site, { skipDelay = false } = {}) {
+    if (clickInFlight) return;
+    clickInFlight = true;
+    attempted = true;
+    try {
+        if (!skipDelay) {
+            const delay = await readClickDelay();
+            if (delay > 0) await sleep(delay);
+        }
 
-function shouldAttachClearOnClick(reason) {
-    return reason === 'logout-tab'
-        || reason === 'logout-session'
-        || reason === 'manual-tab';
+        const found = await waitForTarget(site);
+        const page = currentPage();
+        if (!found.ok) {
+            outcome = found.reason;
+            console.log(`Skip Cam Login: ${site.name} not clicked (${found.reason})`);
+            report(page, { allow: true, reason: 'allowed' });
+            sendLog({ action: 'failed', reason: found.reason });
+            return;
+        }
+
+        // A pause may have been set during the delay or the wait; honour it.
+        const decision = await evaluate(page);
+        if (!decision.allow) {
+            handleDenied(page, decision);
+            return;
+        }
+
+        found.el.click();
+        recordClick();
+        outcome = null;
+        console.log(`Skip Cam Login: clicked the ${site.name} login button`);
+        chrome.runtime.sendMessage({ type: 'login_clicked' })
+            .catch((err) => console.warn('Skip Cam Login: could not notify background', err));
+    } finally {
+        clickInFlight = false;
+    }
 }
 
 function installLogoutInterceptor(site) {
+    if (!site.logoutButtonSelector) return;
     document.addEventListener('click', (event) => {
-        const target = event.target.closest && event.target.closest(site.logoutButtonSelector);
+        const target = event.target instanceof Element && event.target.closest(site.logoutButtonSelector);
         if (target) {
-            console.log(`Auto Clicker: ${site.name} sign-out clicked, suppression armed`);
+            console.log(`Skip Cam Login: ${site.name} sign-out clicked, auto-click paused`);
             markLoggedOut();
         }
     }, { capture: true });
 }
 
+// Clicking the login button yourself clears tab and sign-out pauses and the
+// loop guard. Only real (trusted) clicks count, never our own.
 function attachClearOnClick(site) {
-    const attach = (target) => {
-        target.addEventListener('click', () => {
-            clearSuppression().catch((err) => console.warn('Auto Clicker: clear failed', err));
-        }, { once: true });
+    if (clearListenerAttached) return;
+    clearListenerAttached = true;
+    document.addEventListener('click', (event) => {
+        if (!event.isTrusted) return;
+        if (!(event.target instanceof Element) || !event.target.closest(site.target.selector)) return;
+        clearSuppression().catch((err) => console.warn('Skip Cam Login: clear failed', err));
+    }, { capture: true });
+}
+
+// ─── Popup messages ─────────────────────────────────────────────────────────
+
+async function getStatus() {
+    const page = currentPage();
+    if (page.kind === 'off-domain' || page.kind === 'logout') {
+        return { kind: page.kind, siteId: page.site ? page.site.id : null };
+    }
+    const decision = await evaluate(page);
+    const reason = effectiveReason(decision);
+    return {
+        kind: page.kind,
+        siteId: page.site.id,
+        allow: reason === 'allowed',
+        reason,
+        pauseUntil: decision.pauseUntil,
+        attempted,
     };
+}
 
-    const existing = document.querySelector(site.loginButtonSelector);
-    if (existing) {
-        attach(existing);
-        return;
+async function resume(signIn) {
+    await clearSuppression();
+    const decision = await reevaluateNow();
+    const page = currentPage();
+    if (signIn && page.kind === 'login' && decision && decision.allow) {
+        runAutoClick(page.site, { skipDelay: true });
     }
-
-    const observer = new MutationObserver(() => {
-        const target = document.querySelector(site.loginButtonSelector);
-        if (target) {
-            attach(target);
-            observer.disconnect();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => observer.disconnect(), OBSERVER_TIMEOUT_MS);
+    return getStatus();
 }
 
-async function runAutoClick(site) {
-    const { click_delay_ms } = await chrome.storage.sync.get('click_delay_ms');
-    const delay = Number.isFinite(click_delay_ms) && click_delay_ms > 0 ? click_delay_ms : 0;
-    if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay));
+function onMessage(request, sender, sendResponse) {
+    if (!sender || sender.id !== chrome.runtime.id) return false;
+    const reply = (promise) => {
+        promise.then(sendResponse, (err) => {
+            console.warn('Skip Cam Login: message failed', err);
+            sendResponse(null);
+        });
+        return true;
+    };
+    switch (request && request.type) {
+        case 'reevaluate':
+            return reply(reevaluateNow().then(() => ({})));
+        case 'get_status':
+            return reply(getStatus());
+        case 'set_manual_pause':
+            if (request.value) tabFlagSet(TAB_KEYS.MANUAL_PAUSE);
+            else tabFlagClear(TAB_KEYS.MANUAL_PAUSE);
+            return reply(reevaluateNow().then(getStatus));
+        case 'resume':
+            return reply(resume(request.signIn === true));
+        default:
+            return false;
     }
-
-    if (tryClick(site)) return;
-
-    let succeeded = false;
-    const observer = new MutationObserver(() => {
-        if (tryClick(site)) {
-            succeeded = true;
-            observer.disconnect();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => {
-        observer.disconnect();
-        if (!succeeded) {
-            chrome.runtime.sendMessage({
-                type: 'append_log',
-                entry: { site: site.name, action: 'failed', reason: 'button-not-found' },
-            }).catch(() => {});
-        }
-    }, OBSERVER_TIMEOUT_MS);
-}
-
-function notifyState(state, reason) {
-    chrome.runtime.sendMessage({ type: 'state_update', state, reason })
-        .catch(() => { /* background not ready; ignore */ });
-}
-
-function tryClick(site) {
-    const target = document.querySelector(site.loginButtonSelector);
-    if (!target || typeof target.click !== 'function') return false;
-
-    target.click();
-    console.log(`Auto Clicker: clicked ${site.name} login button`);
-
-    chrome.runtime.sendMessage({
-        type: 'login_clicked',
-        siteName: site.name,
-    }).catch((err) => {
-        console.warn('Auto Clicker: failed to notify background', err);
-    });
-
-    return true;
 }

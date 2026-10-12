@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4] - 2026-10-12
+
+Safer clicking, a status-first popup, and a stricter security policy.
+
+### Added
+
+- **Loop guard:** auto-click stops after 2 clicks within 2 minutes in the same tab, so a sign-in that can't finish no longer cycles forever. The popup offers **Try again**.
+- **Status card** at the top of the popup. It says what will happen on the current tab and why, with a one-click fix: **Resume & sign in**, **Turn on & sign in**, **Try again**, **Reload page** (for tabs opened before the extension started) or **Report a flaky page**.
+- **Pause everywhere until Chrome closes**, alongside 15 min / 1 hour / 4 hours.
+- **Keyboard shortcut** to pause or resume everywhere. It has no default key; set one at `chrome://extensions/shortcuts`.
+- **Keep activity history** switch. Turning it off stops the log and clears it.
+- Error badge `!` when the login button can't be found or looks wrong, or when the loop guard trips.
+- A pin hint on the welcome page when the toolbar icon isn't pinned.
+- An "Updated to 1.4 — see what's new" line in the popup after a feature update.
+- Dedicated 16/24/32/48/128 px icons.
+- Development: a zero-dependency test suite (`node --test "tests/*.test.js"`). It is not shipped.
+
+### Changed
+
+- The right-click "Pause Skip Cam Login on this site" item is now a checkbox per site (**Auto-click on Moodle** / **Auto-click on Panopto**), the same switch as in the popup. Sites paused in 1.3 are migrated to "off".
+- The popup was rebuilt to fit Chrome's 600 px popup limit (about 450 px, down from 984 px). Settings and Recent activity are now collapsible.
+- Clearer wording throughout: notifications ("Signing you in to Moodle"), tooltips with an absolute pause end time, the after-sign-out options, and activity entries.
+- The badge clears by itself when a timed pause ends, without a page reload.
+- Notifications replace each other instead of stacking, and are silent.
+
+### Fixed
+
+- Moodle pages under `/login/` other than the login page itself (for example `forgot_password.php`) were treated as the login page.
+- A pause set during the click delay was ignored.
+- Activity entries and the clicks counter could be lost when several tabs reported at once.
+- Text contrast now meets WCAG AA in both themes. Every switch and menu now has an accessible name.
+
+### Security
+
+- Strict Content Security Policy for extension pages (`style-src 'self'`, no remote fonts or connections). All CSS moved into `popup.css` and `welcome.css`.
+- Auto-click only clicks a single login button that stays on the site or a Cambridge (`*.cam.ac.uk`) sign-in host, and never clicks on any other `/login/` page.
+- Messages from content scripts are validated: the site is taken from the sender, not the message, and log entries are rebuilt from allowed fields only.
+- If pause settings can't be read, it doesn't click, and shows why.
+
 ## [1.3] - 2026-05-05
 
 Visual refresh and a privacy fix.
@@ -68,7 +107,8 @@ Initial Chrome extension release.
 - Clean, user-friendly settings interface.
 - Local-first privacy model with minimal permissions.
 
-[Unreleased]: https://github.com/sileneer/skip-cam-login/compare/1,3...HEAD
+[Unreleased]: https://github.com/sileneer/skip-cam-login/compare/1.4...HEAD
+[1.4]: https://github.com/sileneer/skip-cam-login/compare/1,3...1.4
 [1.3]: https://github.com/sileneer/skip-cam-login/compare/1.2...1,3
 [1.2]: https://github.com/sileneer/skip-cam-login/compare/1.1...1.2
 [1.1]: https://github.com/sileneer/skip-cam-login/compare/1.0...1.1
